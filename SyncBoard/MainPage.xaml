@@ -8,7 +8,23 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid>
-
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel x:Name="HeaderPanel" Orientation="Horizontal" Grid.Row="0">
+            <TextBlock x:Name="Header"
+        Text="Advanced ink customization sample"
+        VerticalAlignment="Center"
+        Style="{ThemeResource HeaderTextBlockStyle}"
+        Margin="10,0,0,0" />
+        </StackPanel>
+        <Grid Grid.Row="1">
+            <!-- Canvas for displaying selection UI. -->
+            <Canvas x:Name="selectionCanvas"/>
+            <!-- Inking area -->
+            <InkCanvas x:Name="inkCanvas"/>
+        </Grid>
     </Grid>
 </Page>
