@@ -51,7 +51,9 @@ namespace SyncBoard
 
             // Set initial ink stroke attributes.
             InkDrawingAttributes drawingAttributes = new InkDrawingAttributes();
-            drawingAttributes.Color = Windows.UI.Colors.White;
+            String theme = new Windows.UI.ViewManagement.UISettings().GetColorValue(
+                Windows.UI.ViewManagement.UIColorType.Background).ToString();
+            drawingAttributes.Color = theme == "#FFFFFFFF" ? Windows.UI.Colors.Black : Windows.UI.Colors.White;
             drawingAttributes.IgnorePressure = false;
             drawingAttributes.FitToCurve = true;
             inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
@@ -132,8 +134,11 @@ namespace SyncBoard
                         {
                             if (!inkCanvas.InkPresenter.StrokeContainer.GetStrokes().Contains(toAddStroke))
                             {
+                                System.Diagnostics.Debug.WriteLine("fdgfsh<");
                                 inkCanvas.InkPresenter.StrokeContainer.AddStroke(toAddStroke);
                             }
+
+                            syncedStrokes.Add(toAddStroke);
                         });
                 }
             });
@@ -174,5 +179,23 @@ namespace SyncBoard
 
             socket.EmitAsync("sync", json);
         }
+
+        // Standard color
+        private void ComboBoxItem_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            InkDrawingAttributes drawingAttributes = new InkDrawingAttributes();
+            String theme = new Windows.UI.ViewManagement.UISettings().GetColorValue(
+                Windows.UI.ViewManagement.UIColorType.Background).ToString();
+            drawingAttributes.Color = theme == "#FFFFFFFF" ? Windows.UI.Colors.Black : Windows.UI.Colors.White;
+            inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
+        }
+
+        // Red color
+        private void ComboBoxItem_Tapped_1(object sender, TappedRoutedEventArgs e)
+        {
+
+        }
     }
+
+
 }

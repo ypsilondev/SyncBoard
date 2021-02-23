@@ -28,8 +28,9 @@
             <InkCanvas x:Name="inkCanvas"/>
         </Grid>
         <StackPanel Margin="0,61,0,871" Grid.RowSpan="2">
-            <ComboBox Width="120">
-                <ListViewItem Content="Standard"/>
+            <ComboBox Width="120" SelectedIndex="0">
+                <ComboBoxItem Content="Standard" Tapped="ComboBoxItem_Tapped"/>
+                <ComboBoxItem Content="Rot" Tapped="ComboBoxItem_Tapped_1"/>
             </ComboBox>
         </StackPanel>
     </Grid>
