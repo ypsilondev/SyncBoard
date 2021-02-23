@@ -107,7 +107,7 @@ namespace SyncBoard
                     JObject stroke = (JObject) strokePointArray;
 
                     InkStrokeBuilder b = new InkStrokeBuilder();
-                    List<InkPoint> inkPoints = new List<InkPoint>();
+                    List<Point> inkPoints = new List<Point>();
                     /*Matrix3x2 matrix = new Matrix3x2(
                         stroke.Value<float>("M11"),
                         stroke.Value<float>("M12"),
@@ -124,22 +124,29 @@ namespace SyncBoard
                         Point p = new Point(o.Value<float>("X"), o.Value<float>("Y"));
 
                         InkPoint ip = new InkPoint(p, o.Value<float>("p"));
-                        inkPoints.Add(ip);
+                        inkPoints.Add(p);
                     }
 
-                    InkStroke toAddStroke = b.CreateStrokeFromInkPoints(inkPoints, matrix);
+                    //InkStroke toAddStroke = b.CreateStrokeFromInkPoints(inkPoints, matrix);
 
                     Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                     RunAsync(CoreDispatcherPriority.Low, () =>
                         {
-                            if (!inkCanvas.InkPresenter.StrokeContainer.GetStrokes().Contains(toAddStroke))
+                            /*if (!inkCanvas.InkPresenter.StrokeContainer.GetStrokes().Contains(toAddStroke))
                             {
                                 System.Diagnostics.Debug.WriteLine("fdgfsh<");
                                 inkCanvas.InkPresenter.StrokeContainer.AddStroke(toAddStroke);
                             }
 
-                            syncedStrokes.Add(toAddStroke);
-                        });
+                            syncedStrokes.Add(toAddStroke);*/
+                            Polygon polygon = new Polygon();
+                            inkPoints.ForEach(p =>
+                            {
+                                polygon.Points.Add(p);
+                            });
+
+                            selectionCanvas.Children.Add(polygon);
+                    });
                 }
             });
         }
@@ -193,7 +200,9 @@ namespace SyncBoard
         // Red color
         private void ComboBoxItem_Tapped_1(object sender, TappedRoutedEventArgs e)
         {
-
+            InkDrawingAttributes drawingAttributes = new InkDrawingAttributes();
+            drawingAttributes.Color = Windows.UI.Colors.Red;
+            inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
         }
     }
 

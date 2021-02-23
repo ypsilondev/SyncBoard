@@ -22,8 +22,7 @@
         </StackPanel>
         <Grid Grid.Row="1" Margin="0,69,0,0">
             <!-- Canvas for displaying selection UI. -->
-            <Canvas x:Name="selectionCanvas" Margin="0,53,0,0">
-            </Canvas>
+            <Canvas x:Name="selectionCanvas"/>
             <!-- Inking area -->
             <InkCanvas x:Name="inkCanvas"/>
         </Grid>
