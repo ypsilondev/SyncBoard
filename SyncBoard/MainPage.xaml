@@ -15,16 +15,22 @@
         </Grid.RowDefinitions>
         <StackPanel x:Name="HeaderPanel" Orientation="Horizontal" Grid.Row="0">
             <TextBlock x:Name="Header"
-        Text="Advanced ink customization sample"
+        Text="Ypsilon SyncBoard"
         VerticalAlignment="Center"
         Style="{ThemeResource HeaderTextBlockStyle}"
         Margin="10,0,0,0" />
         </StackPanel>
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="1" Margin="0,69,0,0">
             <!-- Canvas for displaying selection UI. -->
-            <Canvas x:Name="selectionCanvas"/>
+            <Canvas x:Name="selectionCanvas" Margin="0,53,0,0">
+            </Canvas>
             <!-- Inking area -->
             <InkCanvas x:Name="inkCanvas"/>
         </Grid>
+        <StackPanel Margin="0,61,0,871" Grid.RowSpan="2">
+            <ComboBox Width="120">
+                <ListViewItem Content="Standard"/>
+            </ComboBox>
+        </StackPanel>
     </Grid>
 </Page>
