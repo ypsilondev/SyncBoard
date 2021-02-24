@@ -213,12 +213,7 @@ namespace SyncBoard
         // Call offline mode
         private void offlineModeToggleButton_Checked(object sender, RoutedEventArgs e)
         {
-            this.offlineMode = (bool) offlineModeToggleButton.IsChecked;
-
-            if (this.offlineMode)
-            {
-                InitSocket();
-            }
+            
         }
     }
 
