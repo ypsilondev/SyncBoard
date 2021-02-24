@@ -6,8 +6,11 @@ using System.Numerics;
 using System.Threading;
 using System.Timers;
 using Windows.Foundation;
+using Windows.UI;
 using Windows.UI.Core;
+using Windows.UI.Input;
 using Windows.UI.Input.Inking;
+using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
@@ -57,16 +60,18 @@ namespace SyncBoard
             {
                 await socket.ConnectAsync();
                 ListenIncome();
-                offlineMode = true;
+                offlineMode = false;
+                offlineModeToggleButton.IsChecked = false;
             } catch(System.Net.WebSockets.WebSocketException e)
             {
-                offlineMode = false;
+                offlineMode = true;
+                offlineModeToggleButton.IsChecked = true;
             }
         }
 
         private async void SynchronizationTask()
         {
-            System.Timers.Timer aTimer = new System.Timers.Timer(1000);
+            System.Timers.Timer aTimer = new System.Timers.Timer(200);
             aTimer.Elapsed += timerTask;
             aTimer.AutoReset = true;
             aTimer.Enabled = true;
@@ -89,7 +94,7 @@ namespace SyncBoard
                             }
                         }
 
-                       SyncData(toSync);
+                       if (!offlineMode) SyncData(toSync);
                    });
         }
 
@@ -102,18 +107,37 @@ namespace SyncBoard
                 foreach (var strokePointArray in updateStrokes)
                 {
                     JObject stroke = (JObject) strokePointArray;
-                    List<Point> inkPoints = new List<Point>();
+                    List<InkPoint> inkPoints = new List<InkPoint>();
 
                     foreach (var point in stroke.Value<JArray>("points"))
                     {
                         JObject o = (JObject)point;
                         Point p = new Point(o.Value<float>("x"), o.Value<float>("y"));
-                        inkPoints.Add(p);
+                        InkPoint ip = new InkPoint(p, o.Value<float>("p"));
+                        inkPoints.Add(ip);
                     }
 
                     _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                     RunAsync(CoreDispatcherPriority.Low, () =>
                         {
+                            InkStrokeBuilder b = new InkStrokeBuilder();
+
+                            InkDrawingAttributes da = new InkDrawingAttributes();
+                            da.Color = parseColor(ColorHelper.FromArgb(
+                                (byte)stroke.Value<JObject>("color").GetValue("A"),
+                                (byte)stroke.Value<JObject>("color").GetValue("R"),
+                                (byte)stroke.Value<JObject>("color").GetValue("G"),
+                                (byte)stroke.Value<JObject>("color").GetValue("B")
+                            ));
+                            da.IgnorePressure = false;
+                            da.FitToCurve = true;
+
+                            b.SetDefaultDrawingAttributes(da);
+                            InkStroke c = b.CreateStrokeFromInkPoints(inkPoints, Matrix3x2.Identity);
+
+                            inkCanvas.InkPresenter.StrokeContainer.AddStroke(c);
+
+                            /*
                             Polygon polygon = new Polygon();
                             inkPoints.ForEach(p =>
                             {
@@ -128,14 +152,15 @@ namespace SyncBoard
                                 ));
                             polygon.Stroke = brush;
 
-                            selectionCanvas.Children.Add(polygon);
-                    });
+                            selectionCanvas.Children.Add(polygon);*/
+                        });
                 }
             });
         }
 
         private void SyncData(List<InkStroke> toSync)
         {
+            if (toSync.Count == 0) return;
             JArray json = new JArray();
 
             toSync.ForEach(syncStroke =>
@@ -169,14 +194,31 @@ namespace SyncBoard
             socket.EmitAsync("sync", json);
         }
 
-        // Standard color
-        private void ComboBoxItem_Tapped(object sender, TappedRoutedEventArgs e)
+        private Color parseColor(Color color)
         {
-            InkDrawingAttributes drawingAttributes = new InkDrawingAttributes();
             String theme = new Windows.UI.ViewManagement.UISettings().GetColorValue(
                 Windows.UI.ViewManagement.UIColorType.Background).ToString();
-            drawingAttributes.Color = theme == "#FFFFFFFF" ? Windows.UI.Colors.Black : Windows.UI.Colors.White;
-            inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
+            
+            if (color.Equals(Colors.White) && theme == "#FFFFFFFF")
+            {
+                return Colors.Black;
+            } else if (color.Equals(Colors.Black) && theme != "#FFFFFFFF")
+            {
+                return Colors.White;
+            }
+
+            return color;
+        }
+
+        // Call offline mode
+        private void offlineModeToggleButton_Checked(object sender, RoutedEventArgs e)
+        {
+            this.offlineMode = (bool) offlineModeToggleButton.IsChecked;
+
+            if (this.offlineMode)
+            {
+                InitSocket();
+            }
         }
     }
 
