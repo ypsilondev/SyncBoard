@@ -20,17 +20,21 @@
         Style="{ThemeResource HeaderTextBlockStyle}"
         Margin="10,0,0,0" />
         </StackPanel>
-        <Grid Grid.Row="1" Margin="0,69,0,0">
+        <Grid Grid.Row="1" Margin="0,50,0,0">
             <!-- Canvas for displaying selection UI. -->
             <Canvas x:Name="selectionCanvas"/>
             <!-- Inking area -->
             <InkCanvas x:Name="inkCanvas"/>
+
+            <InkToolbar x:Name="inkToolbar"
+                VerticalAlignment="Top"
+                TargetInkCanvas="{x:Bind inkCanvas}" />
         </Grid>
-        <StackPanel Margin="0,61,0,871" Grid.RowSpan="2">
-            <ComboBox Width="120" SelectedIndex="0">
-                <ComboBoxItem Content="Standard" Tapped="ComboBoxItem_Tapped"/>
-                <ComboBoxItem Content="Rot" Tapped="ComboBoxItem_Tapped_1"/>
-            </ComboBox>
-        </StackPanel>
+        <Grid Margin="0,61,0,890" Grid.RowSpan="2">
+            <Button Content="Neu" Width="64" Margin="1426,0,0,0"/>
+            <AppBarToggleButton Icon="Accept" Label="Offline-Modus"
+                                Height="49" VerticalAlignment="Center" Width="98"
+                                x:Name="offlineModeToggleButton"/>
+        </Grid>
     </Grid>
 </Page>

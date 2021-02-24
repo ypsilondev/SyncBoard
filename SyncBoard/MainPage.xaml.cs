@@ -39,6 +39,7 @@ namespace SyncBoard
     {
         private List<InkStroke> syncedStrokes = new List<InkStroke>();
         private SocketIO socket;
+        private Boolean offlineMode = false;
 
         public MainPage()
         {
@@ -67,8 +68,15 @@ namespace SyncBoard
         private async void InitSocket()
         {
             socket = new SocketIO(Network.URL, new SocketIOOptions { EIO = 4 });
-            await socket.ConnectAsync();
-            ListenIncome();
+            try
+            {
+                await socket.ConnectAsync();
+                ListenIncome();
+                offlineMode = true;
+            } catch(System.Net.WebSockets.WebSocketException e)
+            {
+                offlineMode = false;
+            }
         }
 
         private async void SynchronizationTask()
@@ -85,7 +93,7 @@ namespace SyncBoard
                             if (!syncedStrokes.Contains(stroke))
                             {
                                 syncedStrokes.Add(stroke);
-                                toSync.Add(stroke);
+                                if (!offlineMode) toSync.Add(stroke);
                             }
                         }
 
@@ -105,45 +113,26 @@ namespace SyncBoard
                 foreach (var strokePointArray in updateStrokes)
                 {
                     JObject stroke = (JObject) strokePointArray;
-
-                    InkStrokeBuilder b = new InkStrokeBuilder();
                     List<Point> inkPoints = new List<Point>();
-                    /*Matrix3x2 matrix = new Matrix3x2(
-                        stroke.Value<float>("M11"),
-                        stroke.Value<float>("M12"),
-                        stroke.Value<float>("M21"),
-                        stroke.Value<float>("M22"),
-                        stroke.Value<float>("M31"),
-                        stroke.Value<float>("M32")
-                    );*/
-                    Matrix3x2 matrix = Matrix3x2.Identity;
 
                     foreach (var point in stroke.Value<JArray>("points"))
                     {
                         JObject o = (JObject)point;
-                        Point p = new Point(o.Value<float>("X"), o.Value<float>("Y"));
-
-                        InkPoint ip = new InkPoint(p, o.Value<float>("p"));
+                        Point p = new Point(o.Value<float>("x"), o.Value<float>("y"));
                         inkPoints.Add(p);
                     }
-
-                    //InkStroke toAddStroke = b.CreateStrokeFromInkPoints(inkPoints, matrix);
 
                     Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                     RunAsync(CoreDispatcherPriority.Low, () =>
                         {
-                            /*if (!inkCanvas.InkPresenter.StrokeContainer.GetStrokes().Contains(toAddStroke))
-                            {
-                                System.Diagnostics.Debug.WriteLine("fdgfsh<");
-                                inkCanvas.InkPresenter.StrokeContainer.AddStroke(toAddStroke);
-                            }
-
-                            syncedStrokes.Add(toAddStroke);*/
                             Polygon polygon = new Polygon();
                             inkPoints.ForEach(p =>
                             {
                                 polygon.Points.Add(p);
                             });
+
+                            var brush = new SolidColorBrush(Windows.UI.ColorHelper.FromArgb(255, 0, 0, 255));
+                            polygon.Stroke = brush;
 
                             selectionCanvas.Children.Add(polygon);
                     });
