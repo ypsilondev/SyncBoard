@@ -55,7 +55,13 @@ namespace SyncBoard
 
         private async void InitSocket()
         {
-            socket = new SocketIO(Network.URL, new SocketIOOptions { EIO = 4 });
+            socket = new SocketIO(Network.URL, new SocketIOOptions {
+                EIO = 4,
+                Reconnection = true,
+                ReconnectionDelay = 1000,
+                AllowedRetryFirstConnection = true
+            });
+
             try
             {
                 await socket.ConnectAsync();

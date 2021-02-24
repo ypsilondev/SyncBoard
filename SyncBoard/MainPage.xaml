@@ -20,16 +20,7 @@
         Style="{ThemeResource HeaderTextBlockStyle}"
         Margin="10,0,0,0" />
         </StackPanel>
-        <Grid Grid.Row="1" Margin="0,50,0,0">
-            <!-- Canvas for displaying selection UI. -->
-            <Canvas x:Name="selectionCanvas"/>
-            <!-- Inking area -->
-            <InkCanvas x:Name="inkCanvas"/>
 
-            <InkToolbar x:Name="inkToolbar"
-                VerticalAlignment="Top"
-                TargetInkCanvas="{x:Bind inkCanvas}" />
-        </Grid>
         <Grid Margin="0,61,0,0" Grid.RowSpan="2" Height="49" VerticalAlignment="Top">
             <Button Content="Neu" Margin="103,0,0,0" Width="64"/>
             <AppBarToggleButton Icon="Accept" Label="Offline-Modus"
@@ -37,5 +28,15 @@
                                 x:Name="offlineModeToggleButton"
                                 Checked="offlineModeToggleButton_Checked"/>
         </Grid>
+
+        <InkToolbar x:Name="inkToolbar"
+                    VerticalAlignment="Top"
+                    TargetInkCanvas="{x:Bind inkCanvas}" Margin="0,57,0,0" Grid.Row="1" />
+
+        <ScrollViewer x:Name="scrollViewer" ZoomMode="Enabled" MinZoomFactor="1" VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" Margin="0,85,0,0" Grid.Row="1">
+            <Grid x:Name="outputGrid" Background="{ThemeResource SystemControlBackgroundChromeWhiteBrush}" Width="1491" Height="855">
+                <InkCanvas x:Name="inkCanvas" Margin="-4,45,0,0"/>
+            </Grid>
+        </ScrollViewer>
     </Grid>
 </Page>
