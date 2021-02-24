@@ -10,6 +10,7 @@ using Windows.UI.Core;
 using Windows.UI.Input.Inking;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
+using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Shapes;
 
 // Die Elementvorlage "Leere Seite" wird unter https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x407 dokumentiert.
@@ -74,7 +75,7 @@ namespace SyncBoard
 
         private void timerTask(Object source, ElapsedEventArgs e)
         {
-            Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                    RunAsync(CoreDispatcherPriority.Normal, () =>
                    {
                        List<InkStroke> toSync = new List<InkStroke>();
@@ -96,9 +97,7 @@ namespace SyncBoard
         {
             socket.On("sync", (data) =>
             {
-                System.Diagnostics.Debug.WriteLine(data);
                 JArray updateStrokes = data.GetValue<JArray>();
-                
 
                 foreach (var strokePointArray in updateStrokes)
                 {
@@ -112,7 +111,7 @@ namespace SyncBoard
                         inkPoints.Add(p);
                     }
 
-                    Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                    _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                     RunAsync(CoreDispatcherPriority.Low, () =>
                         {
                             Polygon polygon = new Polygon();
@@ -121,7 +120,12 @@ namespace SyncBoard
                                 polygon.Points.Add(p);
                             });
 
-                            var brush = new SolidColorBrush(Windows.UI.ColorHelper.FromArgb(255, 0, 0, 255));
+                            var brush = new SolidColorBrush(Windows.UI.ColorHelper.FromArgb(
+                                (byte) stroke.Value<JObject>("color").GetValue("A"),
+                                (byte) stroke.Value<JObject>("color").GetValue("R"),
+                                (byte) stroke.Value<JObject>("color").GetValue("G"),
+                                (byte) stroke.Value<JObject>("color").GetValue("B")
+                                ));
                             polygon.Stroke = brush;
 
                             selectionCanvas.Children.Add(polygon);
@@ -132,24 +136,24 @@ namespace SyncBoard
 
         private void SyncData(List<InkStroke> toSync)
         {
-            Newtonsoft.Json.Linq.JArray json = new Newtonsoft.Json.Linq.JArray();
+            JArray json = new JArray();
 
             toSync.ForEach(syncStroke =>
             {
-                Newtonsoft.Json.Linq.JArray oneStrokePoints = new Newtonsoft.Json.Linq.JArray();
-                Newtonsoft.Json.Linq.JObject matrix = new Newtonsoft.Json.Linq.JObject();
-                Newtonsoft.Json.Linq.JObject ö = new Newtonsoft.Json.Linq.JObject();
+                JArray oneStrokePoints = new JArray();
+                JObject ö = new JObject();
 
-                matrix.Add("M11", syncStroke.PointTransform.M11);
-                matrix.Add("M12", syncStroke.PointTransform.M12);
-                matrix.Add("M21", syncStroke.PointTransform.M21);
-                matrix.Add("M22", syncStroke.PointTransform.M22);
-                matrix.Add("M31", syncStroke.PointTransform.M31);
-                matrix.Add("M32", syncStroke.PointTransform.M32);
+                JObject color = new JObject();
+                color.Add("A", syncStroke.DrawingAttributes.Color.A);
+                color.Add("R", syncStroke.DrawingAttributes.Color.R);
+                color.Add("G", syncStroke.DrawingAttributes.Color.G);
+                color.Add("B", syncStroke.DrawingAttributes.Color.B);
+
+                ö.Add("color", color);
 
                 foreach (var strokePoint in syncStroke.GetInkPoints())
                 {
-                    Newtonsoft.Json.Linq.JObject o = new Newtonsoft.Json.Linq.JObject();
+                    JObject o = new JObject();
                     o.Add("x", strokePoint.Position.X);
                     o.Add("y", strokePoint.Position.Y);
                     o.Add("p", strokePoint.Pressure);
@@ -157,7 +161,6 @@ namespace SyncBoard
                     oneStrokePoints.Add(o);
                 }
 
-                ö.Add("matrix", matrix);
                 ö.Add("points", oneStrokePoints);
 
                 json.Add(ö);
@@ -173,14 +176,6 @@ namespace SyncBoard
             String theme = new Windows.UI.ViewManagement.UISettings().GetColorValue(
                 Windows.UI.ViewManagement.UIColorType.Background).ToString();
             drawingAttributes.Color = theme == "#FFFFFFFF" ? Windows.UI.Colors.Black : Windows.UI.Colors.White;
-            inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
-        }
-
-        // Red color
-        private void ComboBoxItem_Tapped_1(object sender, TappedRoutedEventArgs e)
-        {
-            InkDrawingAttributes drawingAttributes = new InkDrawingAttributes();
-            drawingAttributes.Color = Windows.UI.Colors.Red;
             inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
         }
     }
