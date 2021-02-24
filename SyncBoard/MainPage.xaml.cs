@@ -1,32 +1,16 @@
 ﻿using Newtonsoft.Json.Linq;
-using SimpleJson;
 using SocketIOClient;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Numerics;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
-using WebSocket4Net;
-using Windows.Data.Json;
+using System.Timers;
 using Windows.Foundation;
-using Windows.Foundation.Collections;
-using Windows.Storage.Streams;
 using Windows.UI.Core;
-using Windows.UI.Input;
 using Windows.UI.Input.Inking;
-using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Input;
-using Windows.UI.Xaml.Media;
-using Windows.UI.Xaml.Navigation;
 using Windows.UI.Xaml.Shapes;
-using JsonArray = SimpleJson.JsonArray;
-using JsonObject = SimpleJson.JsonObject;
 
 // Die Elementvorlage "Leere Seite" wird unter https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x407 dokumentiert.
 
@@ -73,25 +57,31 @@ namespace SyncBoard
 
         private async void SynchronizationTask()
         {
-            Timer timer = new Timer((e) =>
-            {
-                Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
-                    RunAsync(CoreDispatcherPriority.Low, () =>
-                    {
-                        List<InkStroke> toSync = new List<InkStroke>();
+            System.Timers.Timer aTimer = new System.Timers.Timer(1000);
+            aTimer.Elapsed += timerTask;
+            aTimer.AutoReset = true;
+            aTimer.Enabled = true;
 
-                        foreach (var stroke in inkCanvas.InkPresenter.StrokeContainer.GetStrokes())
-                        {
-                            if (!syncedStrokes.Contains(stroke))
-                            {
-                                syncedStrokes.Add(stroke);
-                                toSync.Add(stroke);
-                            }
-                        }
+        }
 
-                        SyncData(toSync);
-                    });
-            }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
+        private void timerTask(Object source, ElapsedEventArgs e)
+        {
+            Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                   RunAsync(CoreDispatcherPriority.Normal, () =>
+                   {
+                       List<InkStroke> toSync = new List<InkStroke>();
+
+                       foreach (var stroke in inkCanvas.InkPresenter.StrokeContainer.GetStrokes())
+                       {
+                           if (!syncedStrokes.Contains(stroke))
+                           {
+                               syncedStrokes.Add(stroke);
+                               toSync.Add(stroke);
+                           }
+                       }
+
+                       SyncData(toSync);
+                   });
         }
 
         private async void ListenIncome()

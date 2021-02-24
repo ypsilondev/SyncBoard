@@ -154,9 +154,6 @@
     <PackageReference Include="Microsoft.NETCore.UniversalWindowsPlatform">
       <Version>6.2.9</Version>
     </PackageReference>
-    <PackageReference Include="SocketIO4Net.Client">
-      <Version>0.6.26</Version>
-    </PackageReference>
     <PackageReference Include="SocketIOClient">
       <Version>2.1.5</Version>
     </PackageReference>
