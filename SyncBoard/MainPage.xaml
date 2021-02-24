@@ -31,11 +31,11 @@
 
         <InkToolbar x:Name="inkToolbar"
                     VerticalAlignment="Top"
-                    TargetInkCanvas="{x:Bind inkCanvas}" Margin="0,57,0,0" Grid.Row="1" />
+                    TargetInkCanvas="{x:Bind inkCanvas}" Margin="0,50,0,0" Grid.Row="1" />
 
         <ScrollViewer x:Name="scrollViewer" ZoomMode="Enabled" MinZoomFactor="1" VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" Margin="0,85,0,0" Grid.Row="1">
-            <Grid x:Name="outputGrid" Background="{ThemeResource SystemControlBackgroundChromeWhiteBrush}" Width="1491" Height="855">
-                <InkCanvas x:Name="inkCanvas" Margin="-4,45,0,0"/>
+            <Grid x:Name="outputGrid" Background="{ThemeResource SystemControlBackgroundChromeWhiteBrush}" Width="1491" Height="845">
+                <InkCanvas x:Name="inkCanvas" Margin="-4,10,0,0"/>
             </Grid>
         </ScrollViewer>
     </Grid>
