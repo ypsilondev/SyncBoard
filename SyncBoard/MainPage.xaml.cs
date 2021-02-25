@@ -112,8 +112,20 @@ namespace SyncBoard
                         {
                             if (!syncedStrokes.Contains(stroke))
                             {
-                                syncedStrokes.Add(stroke);
-                                toSync.Add(stroke);
+                               foreach (var point in stroke.GetInkPoints())
+                               {
+                                   if (point.Position.Y >= inkCanvas.Height - EXPAND_MARGIN)
+                                   {
+                                       expandBoard(true);
+                                   }
+                                   else if (point.Position.X >= inkCanvas.Width - EXPAND_MARGIN)
+                                   {
+                                       expandBoard(false);
+                                   }
+                               }
+
+                               syncedStrokes.Add(stroke);
+                               toSync.Add(stroke);
                             }
                         }
 
@@ -138,6 +150,19 @@ namespace SyncBoard
                         Point p = new Point(o.Value<float>("x"), o.Value<float>("y"));
                         InkPoint ip = new InkPoint(p, o.Value<float>("p"));
                         inkPoints.Add(ip);
+
+                        _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                                RunAsync(CoreDispatcherPriority.Low, () =>
+                                {
+                                    if (o.Value<float>("y") >= inkCanvas.Height - EXPAND_MARGIN)
+                                    {
+                                        expandBoard(true, o.Value<float>("y"));
+                                    }
+                                    else if (o.Value<float>("x") >= inkCanvas.Width - EXPAND_MARGIN)
+                                    {
+                                        expandBoard(false, o.Value<float>("x"));
+                                    }
+                                });
                     }
 
                     _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
@@ -161,23 +186,6 @@ namespace SyncBoard
                             syncedStrokes.Add(c);
 
                             inkCanvas.InkPresenter.StrokeContainer.AddStroke(c);
-
-                            /*
-                            Polygon polygon = new Polygon();
-                            inkPoints.ForEach(p =>
-                            {
-                                polygon.Points.Add(p);
-                            });
-
-                            var brush = new SolidColorBrush(Windows.UI.ColorHelper.FromArgb(
-                                (byte) stroke.Value<JObject>("color").GetValue("A"),
-                                (byte) stroke.Value<JObject>("color").GetValue("R"),
-                                (byte) stroke.Value<JObject>("color").GetValue("G"),
-                                (byte) stroke.Value<JObject>("color").GetValue("B")
-                                ));
-                            polygon.Stroke = brush;
-
-                            selectionCanvas.Children.Add(polygon);*/
                         });
                 }
             });
@@ -228,14 +236,6 @@ namespace SyncBoard
                     o.Add("y", strokePoint.Position.Y);
                     o.Add("p", strokePoint.Pressure);
 
-                    if (strokePoint.Position.Y >= inkCanvas.Height - EXPAND_MARGIN)
-                    {
-                        expandBoard(true);
-                    } else if (strokePoint.Position.X >= inkCanvas.Width - EXPAND_MARGIN)
-                    {
-                        expandBoard(false);
-                    }
-
                     oneStrokePoints.Add(o);
                 }
 
@@ -274,6 +274,15 @@ namespace SyncBoard
                 outputGrid.Width += 200;
                 inkCanvas.Width += 200;
             }
+        }
+
+        private void expandBoard(bool bottom, float offset)
+        {
+            outputGrid.Height = offset + 200;
+            inkCanvas.Height = offset + 200;
+
+            outputGrid.Width = offset + 200;
+            inkCanvas.Width = offset + 200;
         }
 
         private void SetOfflineMode(bool set)
