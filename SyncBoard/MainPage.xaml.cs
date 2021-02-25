@@ -25,6 +25,8 @@ namespace SyncBoard
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        private static int EXPAND_MARGIN = 100;
+
         private List<InkStroke> syncedStrokes = new List<InkStroke>();
         private SocketIO socket;
         private Boolean offlineMode = false;
@@ -191,6 +193,14 @@ namespace SyncBoard
                     o.Add("y", strokePoint.Position.Y);
                     o.Add("p", strokePoint.Pressure);
 
+                    if (strokePoint.Position.Y >= inkCanvas.Height - EXPAND_MARGIN)
+                    {
+                        expandBoard(true);
+                    } else if (strokePoint.Position.X >= inkCanvas.Width - EXPAND_MARGIN)
+                    {
+                        expandBoard(false);
+                    }
+
                     oneStrokePoints.Add(o);
                 }
 
@@ -216,6 +226,19 @@ namespace SyncBoard
             }
 
             return color;
+        }
+
+        private void expandBoard(bool bottom)
+        {
+            if (bottom)
+            {
+                outputGrid.Height += 200;
+                inkCanvas.Height += 200;
+            } else
+            {
+                outputGrid.Width += 200;
+                inkCanvas.Width += 200;
+            }
         }
 
         // Call offline mode
