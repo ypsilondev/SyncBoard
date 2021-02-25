@@ -141,6 +141,8 @@ namespace SyncBoard
                             b.SetDefaultDrawingAttributes(da);
                             InkStroke c = b.CreateStrokeFromInkPoints(inkPoints, Matrix3x2.Identity);
 
+                            syncedStrokes.Add(c);
+
                             inkCanvas.InkPresenter.StrokeContainer.AddStroke(c);
 
                             /*
