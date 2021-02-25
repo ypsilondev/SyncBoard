@@ -22,11 +22,18 @@
         </StackPanel>
 
         <Grid Margin="0,61,0,0" Grid.RowSpan="2" Height="49" VerticalAlignment="Top">
-            <Button Content="Neu" Margin="103,0,0,0" Width="64"/>
+            <Button Content="Neu" Margin="0,0,246,0" HorizontalAlignment="Right" Width="67"/>
             <AppBarToggleButton Icon="Accept" Label="Offline-Modus"
                                 Height="49" Width="98"
                                 x:Name="offlineModeToggleButton"
                                 Checked="offlineModeToggleButton_Checked"/>
+            <TextBox Margin="0,0,105,0" Text="Raumcode"
+                     TextWrapping="Wrap" VerticalAlignment="Center"
+                     x:Name="roomCodeBox" TextAlignment="Center" HorizontalAlignment="Right"
+                     Width="87" TextChanged="roomCodeBox_TextChanged"/>
+            <Button Content="Beitreten" Margin="0,0,10,0" RenderTransformOrigin="0.483,0.508"
+                    HorizontalAlignment="Right" Width="76" IsEnabled="False"
+                    x:Name="connectButton" Click="connectButton_Click"/>
         </Grid>
 
         <InkToolbar x:Name="inkToolbar"

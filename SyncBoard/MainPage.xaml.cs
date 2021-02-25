@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Threading;
 using System.Timers;
+using Windows.Data.Json;
 using Windows.Foundation;
 using Windows.UI;
 using Windows.UI.Core;
@@ -30,6 +31,8 @@ namespace SyncBoard
         private List<InkStroke> syncedStrokes = new List<InkStroke>();
         private SocketIO socket;
         private Boolean offlineMode = false;
+
+        private String roomCode = "";
 
         public MainPage()
         {
@@ -64,17 +67,29 @@ namespace SyncBoard
                 AllowedRetryFirstConnection = true
             });
 
+            HandleSocketConnection();
+
             try
             {
                 await socket.ConnectAsync();
                 ListenIncome();
-                offlineMode = false;
-                offlineModeToggleButton.IsChecked = false;
             } catch(System.Net.WebSockets.WebSocketException e)
             {
-                offlineMode = true;
-                offlineModeToggleButton.IsChecked = true;
+                SetOfflineMode(true);
             }
+        }
+
+        private async void HandleSocketConnection()
+        {
+            socket.OnConnected += ((sender, args) =>
+            {
+                SetOfflineMode(false);
+            });
+
+            socket.OnDisconnected += ((sender, args) =>
+            {
+                SetOfflineMode(true);
+            });
         }
 
         private async void SynchronizationTask()
@@ -166,6 +181,26 @@ namespace SyncBoard
                         });
                 }
             });
+
+            socket.On("cmd", (data) =>
+            {
+                JObject dataJson = data.GetValue<JObject>();
+                
+                if (dataJson.ContainsKey("token"))
+                {
+                    _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                            RunAsync(CoreDispatcherPriority.Normal, () =>
+                            {
+                                roomCodeBox.Text = dataJson.Value<String>("token");
+                                roomCodeBox.Visibility = Visibility.Visible;
+                                roomCode = dataJson.Value<String>("token");
+                            });
+                } else if (dataJson.ContainsKey("success"))
+                {
+
+                }
+                
+            });
         }
 
         private void SyncData(List<InkStroke> toSync)
@@ -241,10 +276,57 @@ namespace SyncBoard
             }
         }
 
+        private void SetOfflineMode(bool set)
+        {
+            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                   RunAsync(CoreDispatcherPriority.Normal, () =>
+                   {
+                       offlineMode = set;
+                       offlineModeToggleButton.IsChecked = set;
+
+                       if (!set && socket.Connected)
+                       {
+                           socket.EmitAsync("cmd", "{\"action\": \"create\"}");
+                       }
+                       else
+                       {
+                           roomCodeBox.Visibility = Visibility.Collapsed;
+                           roomCode = "";
+                       }
+                   });
+        }
+
+        private void connectRoom()
+        {
+            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                   RunAsync(CoreDispatcherPriority.Normal, () =>
+                   {
+                       inkCanvas.InkPresenter.StrokeContainer.Clear();
+                   });
+        }
+
         // Call offline mode
         private void offlineModeToggleButton_Checked(object sender, RoutedEventArgs e)
         {
             
+        }
+
+        // Connect room
+        private void connectButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!offlineMode && socket.Connected)
+            {
+                socket.EmitAsync("cmd", "{\"action\": \"join\", \"payload\": \"" + roomCodeBox.Text + "\"}");
+            }
+        }
+
+        // Room-Code Checkbox
+        private void roomCodeBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            if (roomCodeBox.Text.Length == 4 && roomCodeBox.Text != roomCode)
+            {
+                connectButton.IsEnabled = true;
+            }
         }
     }
 
