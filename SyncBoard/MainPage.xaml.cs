@@ -197,7 +197,7 @@ namespace SyncBoard
                             });
                 } else if (dataJson.ContainsKey("success"))
                 {
-
+                    connectRoom();
                 }
                 
             });
