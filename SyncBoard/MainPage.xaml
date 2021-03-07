@@ -13,37 +13,38 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
-        <StackPanel x:Name="HeaderPanel" Orientation="Horizontal" Grid.Row="0">
-            <TextBlock x:Name="Header"
-        Text="Ypsilon SyncBoard"
-        VerticalAlignment="Center"
-        Style="{ThemeResource HeaderTextBlockStyle}"
-        Margin="10,0,0,0" />
-        </StackPanel>
 
-        <Grid Margin="0,61,0,0" Grid.RowSpan="2" Height="49" VerticalAlignment="Top">
-            <Button Content="Neu" Margin="0,0,246,0" HorizontalAlignment="Right" Width="67"/>
+        <Grid Grid.RowSpan="2" Height="49" VerticalAlignment="Top">
+            <Grid.Background>
+                <AcrylicBrush Opacity="0.9" TintOpacity="0.9" TintColor="#CC000000"/>
+            </Grid.Background>
+            <Button Content="Neu" Margin="0,0,23,0" RenderTransformOrigin="0.99,0.473" HorizontalAlignment="Right" Width="67"/>
             <AppBarToggleButton Icon="Accept" Label="Offline-Modus"
                                 Height="49" Width="98"
                                 x:Name="offlineModeToggleButton"
                                 Checked="offlineModeToggleButton_Checked"/>
-            <TextBox Margin="0,0,105,0" Text="Raumcode"
+            <TextBox Margin="0,0,213,0" Text="Raumcode"
                      TextWrapping="Wrap" VerticalAlignment="Center"
-                     x:Name="roomCodeBox" TextAlignment="Center" HorizontalAlignment="Right"
-                     Width="87" TextChanged="roomCodeBox_TextChanged"/>
-            <Button Content="Beitreten" Margin="0,0,10,0" RenderTransformOrigin="0.483,0.508"
-                    HorizontalAlignment="Right" Width="76" IsEnabled="False"
-                    x:Name="connectButton" Click="connectButton_Click"/>
+                     x:Name="roomCodeBox" TextAlignment="Center" TextChanged="roomCodeBox_TextChanged" HorizontalAlignment="Right" Width="86"/>
+            <Button Content="Beitreten" Margin="0,0,120,0" RenderTransformOrigin="0.483,0.508" IsEnabled="False"
+                    x:Name="connectButton" Click="connectButton_Click" HorizontalAlignment="Right" Width="76"/>
         </Grid>
 
         <InkToolbar x:Name="inkToolbar"
                     VerticalAlignment="Top"
-                    TargetInkCanvas="{x:Bind inkCanvas}" Margin="0,50,0,0" Grid.Row="1" />
+                    TargetInkCanvas="{x:Bind inkCanvas}" Grid.Row="1" Margin="0,54,0,0" Height="44" >
+            <InkToolbar.Foreground>
+                <AcrylicBrush TintOpacity="0.6" Opacity="0.6"/>
+            </InkToolbar.Foreground>
+            <InkToolbar.Background>
+                <AcrylicBrush TintOpacity="0.6" TintColor="#CC000000" Opacity="0.6" AlwaysUseFallback="False"/>
+            </InkToolbar.Background>
+        </InkToolbar>
 
         <ScrollViewer x:Name="scrollViewer" ZoomMode="Enabled" MinZoomFactor="1"
                       VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
-                      Margin="0,96,0,0" Grid.Row="1">
+                      Margin="0,98,0,0" Grid.Row="1">
             <Grid x:Name="outputGrid"
                   Height="{Binding ElementName=scrollViewer, Path=ActualHeight}"
                   Width="{Binding ElementName=scrollViewer, Path=ActualWidth}">

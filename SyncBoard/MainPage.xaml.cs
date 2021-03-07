@@ -84,6 +84,11 @@ namespace SyncBoard
             socket.OnConnected += ((sender, args) =>
             {
                 SetOfflineMode(false);
+
+                if (roomCode != "")
+                {
+                    socket.EmitAsync("cmd", "{\"action\": \"join\", \"payload\": \"" + roomCode + "\"}");
+                }
             });
 
             socket.OnDisconnected += ((sender, args) =>
@@ -267,22 +272,22 @@ namespace SyncBoard
         {
             if (bottom)
             {
-                outputGrid.Height += 200;
-                inkCanvas.Height += 200;
+                outputGrid.Height += 1200;
+                inkCanvas.Height += 1200;
             } else
             {
-                outputGrid.Width += 200;
-                inkCanvas.Width += 200;
+                outputGrid.Width += 1200;
+                inkCanvas.Width += 1200;
             }
         }
 
         private void expandBoard(bool bottom, float offset)
         {
-            outputGrid.Height = offset + 200;
-            inkCanvas.Height = offset + 200;
+            outputGrid.Height = offset + 1200;
+            inkCanvas.Height = offset + 1200;
 
-            outputGrid.Width = offset + 200;
-            inkCanvas.Width = offset + 200;
+            outputGrid.Width = offset + 1200;
+            inkCanvas.Width = offset + 1200;
         }
 
         private void SetOfflineMode(bool set)
