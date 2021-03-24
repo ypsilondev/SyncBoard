@@ -136,7 +136,7 @@ namespace SyncBoard
                             }
                         }
 
-                       if (!offlineMode) SyncData(toSync);
+                       if (!offlineMode) SyncData(toSync, "sync");
                    });
         }
 
@@ -213,22 +213,28 @@ namespace SyncBoard
                 } else if (dataJson.ContainsKey("success"))
                 {
                     connectRoom();
-                } else if (dataJson.ContainsKey("action") && dataJson.Value<String>("action") == "joined")
+                } else if (dataJson.ContainsKey("action"))
                 {
-                    _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                    if (dataJson.Value<String>("action") == "joined")
+                    {
+                        _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                             RunAsync(CoreDispatcherPriority.Normal, () =>
                             {
                                 userJoinedText.Visibility = Visibility.Visible;
                                 Thread.Sleep(2000);
                                 userJoinedText.Visibility = Visibility.Collapsed;
                             });
-
+                    } else if (dataJson.Value<String>("action") == "sendBoard")
+                    {
+                        List<InkStroke> strokes = (List<InkStroke>) inkCanvas.InkPresenter.StrokeContainer.GetStrokes();
+                        SyncData(strokes, "init-sync");
+                    }
                 }
                 
             });
         }
 
-        private void SyncData(List<InkStroke> toSync)
+        private void SyncData(List<InkStroke> toSync, String channel)
         {
             if (toSync.Count == 0) return;
             JArray json = new JArray();
@@ -261,7 +267,7 @@ namespace SyncBoard
                 json.Add(ö);
             });
 
-            socket.EmitAsync("sync", json);
+            socket.EmitAsync(channel, json);
         }
 
         private Color parseColor(Color color)
