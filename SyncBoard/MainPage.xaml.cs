@@ -1,7 +1,9 @@
 ﻿using Newtonsoft.Json.Linq;
 using SocketIOClient;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Timers;
@@ -12,6 +14,7 @@ using Windows.UI;
 using Windows.UI.Core;
 using Windows.UI.Input;
 using Windows.UI.Input.Inking;
+using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
@@ -29,7 +32,9 @@ namespace SyncBoard
     {
         private static int EXPAND_MARGIN = 400;
 
-        private List<InkStroke> syncedStrokes = new List<InkStroke>();
+        private Dictionary<Guid, InkStroke> syncedStrokes = new Dictionary<Guid, InkStroke>();
+        private Dictionary<InkStroke, Guid> reverseStrokes = new Dictionary<InkStroke, Guid>();
+
         private SocketIO socket;
         private Boolean offlineMode = false;
 
@@ -54,10 +59,22 @@ namespace SyncBoard
             drawingAttributes.FitToCurve = true;
             inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
 
+            inkCanvas.InkPresenter.StrokesErased += InkPresenter_StrokesErased;
+
             // Network and sync:
             InitSocket();
 
             SynchronizationTask();
+        }
+
+        private void InkPresenter_StrokesErased(InkPresenter sender, InkStrokesErasedEventArgs args)
+        {
+            Guid[] eraseIds = new Guid[args.Strokes.Count];
+            for (int i = 0; i < args.Strokes.ToArray().Length; i++)
+            {
+                eraseIds[i] = reverseStrokes.GetValueOrDefault(args.Strokes.ToArray()[i]);
+            }
+            CallErasement(eraseIds);
         }
 
         private async void InitSocket()
@@ -117,7 +134,7 @@ namespace SyncBoard
 
                         foreach (var stroke in inkCanvas.InkPresenter.StrokeContainer.GetStrokes())
                         {
-                            if (!syncedStrokes.Contains(stroke))
+                            if (!syncedStrokes.Values.Contains(stroke))
                             {
                                foreach (var point in stroke.GetInkPoints())
                                {
@@ -131,7 +148,10 @@ namespace SyncBoard
                                    }
                                }
 
-                               syncedStrokes.Add(stroke);
+                               Guid guid = Guid.NewGuid();
+                               syncedStrokes.Add(guid, stroke);
+                               reverseStrokes.Add(stroke, guid);
+
                                toSync.Add(stroke);
                             }
                         }
@@ -190,7 +210,8 @@ namespace SyncBoard
                             b.SetDefaultDrawingAttributes(da);
                             InkStroke c = b.CreateStrokeFromInkPoints(inkPoints, Matrix3x2.Identity);
 
-                            syncedStrokes.Add(c);
+                            syncedStrokes.Add(Guid.Parse(stroke.Value<String>("guid")), c);
+                            reverseStrokes.Add(c, Guid.Parse(stroke.Value<String>("guid")));
 
                             inkCanvas.InkPresenter.StrokeContainer.AddStroke(c);
                         });
@@ -220,17 +241,73 @@ namespace SyncBoard
                         _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                             RunAsync(CoreDispatcherPriority.Normal, () =>
                             {
+                                userJoinedText.Text = "User JOINED";
                                 userJoinedText.Visibility = Visibility.Visible;
-                                Thread.Sleep(2000);
+                            });
+
+                        Thread.Sleep(2000);
+
+                        _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                            RunAsync(CoreDispatcherPriority.Normal, () =>
+                            {
                                 userJoinedText.Visibility = Visibility.Collapsed;
                             });
                     } else if (dataJson.Value<String>("action") == "sendBoard")
                     {
-                        List<InkStroke> strokes = (List<InkStroke>) inkCanvas.InkPresenter.StrokeContainer.GetStrokes();
-                        SyncData(strokes, "init-sync");
+                        _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                            RunAsync(CoreDispatcherPriority.Normal, () =>
+                            {
+                                List<InkStroke> strokes = new List<InkStroke>();
+                                foreach (InkStroke stroke in inkCanvas.InkPresenter.StrokeContainer.GetStrokes())
+                                {
+                                    strokes.Add(stroke);
+                                }
+
+                                SyncData(strokes, "init-sync");
+                            });
+                    } else if (dataJson.Value<String>("action") == "left")
+                    {
+                        _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                            RunAsync(CoreDispatcherPriority.Normal, () =>
+                            {
+                                userJoinedText.Text = "User LEFT";
+                                userJoinedText.Visibility = Visibility.Visible;
+                            });
+
+                        Thread.Sleep(2000);
+
+                        _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                            RunAsync(CoreDispatcherPriority.Normal, () =>
+                            {
+                                userJoinedText.Visibility = Visibility.Collapsed;
+                            });
                     }
                 }
                 
+            });
+
+            socket.On("erase", (data) => {
+                Guid[] toEraseIds = data.GetValue<Guid[]>();
+                foreach (Guid eraseId in toEraseIds)
+                {
+                    _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                   RunAsync(CoreDispatcherPriority.Normal, () =>
+                   {
+                       System.Diagnostics.Debug.WriteLine(eraseId);
+
+                       if (syncedStrokes.GetValueOrDefault(eraseId) != null)
+                       {
+                           var inkPoints = syncedStrokes.GetValueOrDefault(eraseId).GetInkPoints().ToArray();
+                           for (int i = 1; i < inkPoints.Length; i++)
+                           {
+                               Point p = new Point(inkPoints[i - 1].Position.X, inkPoints[i - 1].Position.Y);
+                               Point pEnd = new Point(inkPoints[i].Position.X, inkPoints[i].Position.Y);
+                               var selectLineRect = inkCanvas.InkPresenter.StrokeContainer.SelectWithLine(p, pEnd);
+                               var deleteRect = inkCanvas.InkPresenter.StrokeContainer.DeleteSelected();
+                           }
+                       }
+                   });
+                }
             });
         }
 
@@ -251,6 +328,7 @@ namespace SyncBoard
                 color.Add("B", syncStroke.DrawingAttributes.Color.B);
 
                 ö.Add("color", color);
+                ö.Add("guid", reverseStrokes.GetValueOrDefault(syncStroke));
 
                 foreach (var strokePoint in syncStroke.GetInkPoints())
                 {
@@ -268,6 +346,16 @@ namespace SyncBoard
             });
 
             socket.EmitAsync(channel, json);
+        }
+
+        private void CallErasement(Guid[] erasedIds)
+        {
+            /*JArray ids = new JArray(erasedIds);
+
+            JObject obj = new JObject();
+            obj.Add("action", "erase");
+            obj.Add("data", ids);*/
+            socket.EmitAsync("erase", erasedIds);
         }
 
         private Color parseColor(Color color)
@@ -341,7 +429,7 @@ namespace SyncBoard
         // Call offline mode
         private void offlineModeToggleButton_Checked(object sender, RoutedEventArgs e)
         {
-            
+
         }
 
         // Connect room
@@ -464,6 +552,18 @@ namespace SyncBoard
             else
             {
                 // Operation cancelled.
+            }
+        }
+
+        // Enter fullscreen
+        private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+            if (ApplicationView.GetForCurrentView().IsFullScreen)
+            {
+                ApplicationView.GetForCurrentView().ExitFullScreenMode();
+            } else
+            {
+                ApplicationView.GetForCurrentView().TryEnterFullScreenMode();
             }
         }
     }

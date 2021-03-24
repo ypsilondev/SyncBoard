@@ -14,9 +14,23 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <Grid Grid.RowSpan="2" Height="49" VerticalAlignment="Top">
+        <ScrollViewer x:Name="scrollViewer" ZoomMode="Enabled" MinZoomFactor="1"
+                      VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" Grid.Row="1" Margin="0,98,0,0">
+            <Grid x:Name="outputGrid"
+                  Height="{Binding ActualHeight, ElementName=scrollViewer}"
+                  Width="{Binding ActualWidth, ElementName=scrollViewer}">
+                <InkCanvas x:Name="inkCanvas"
+                      Height="{Binding ActualHeight, ElementName=scrollViewer}"
+                      Width="{Binding ActualWidth, ElementName=scrollViewer}"/>
+            </Grid>
+        </ScrollViewer>
+        <Grid Grid.RowSpan="2" Height="54" VerticalAlignment="Top">
+            <Grid.FocusVisualPrimaryBrush>
+                <SolidColorBrush Color="Black" Opacity="0.6"/>
+            </Grid.FocusVisualPrimaryBrush>
             <Grid.Background>
-                <AcrylicBrush Opacity="0.9" TintOpacity="0.9" TintColor="#CC000000"/>
+                <AcrylicBrush FallbackColor="{ThemeResource SystemChromeDisabledHighColor}" Opacity="0.8" TintColor="{ThemeResource SystemAccentColor}" TintOpacity="0.6" BackgroundSource="HostBackdrop" AlwaysUseFallback="False"/>
             </Grid.Background>
             <Button Content="Neu" Margin="0,0,23,0" RenderTransformOrigin="0.99,0.473"
                     HorizontalAlignment="Right" Width="67" Click="Button_Click"/>
@@ -33,30 +47,17 @@
             <Button Content="Laden" Margin="237,0,0,0" Click="importBoard"/>
             <TextBlock HorizontalAlignment="Left" Margin="323,0,0,0" Text="A User joined your Board" TextWrapping="Wrap"
                        VerticalAlignment="Center" x:Name="userJoinedText" Visibility="Collapsed"/>
+            <Button Content="Vollbild" Margin="370,0,0,0" Click="Button_Click_1"/>
         </Grid>
-
         <InkToolbar x:Name="inkToolbar"
                     VerticalAlignment="Top"
-                    TargetInkCanvas="{x:Bind inkCanvas}" Grid.Row="1" Margin="0,54,0,0" Height="44" >
+                    TargetInkCanvas="{x:Bind Path=inkCanvas}" Grid.Row="1" Margin="0,54,0,0" Height="44" >
             <InkToolbar.Foreground>
                 <AcrylicBrush TintOpacity="0.6" Opacity="0.6"/>
             </InkToolbar.Foreground>
             <InkToolbar.Background>
-                <AcrylicBrush TintOpacity="0.6" TintColor="#CC000000" Opacity="0.6" AlwaysUseFallback="False"/>
+                <AcrylicBrush TintOpacity="0.2" TintColor="#CC000000" Opacity="0.8" AlwaysUseFallback="False" FallbackColor="{ThemeResource SystemAccentColor}"/>
             </InkToolbar.Background>
         </InkToolbar>
-
-        <ScrollViewer x:Name="scrollViewer" ZoomMode="Enabled" MinZoomFactor="1"
-                      VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
-                      Margin="0,98,0,0" Grid.Row="1">
-            <Grid x:Name="outputGrid"
-                  Height="{Binding ElementName=scrollViewer, Path=ActualHeight}"
-                  Width="{Binding ElementName=scrollViewer, Path=ActualWidth}">
-                <InkCanvas x:Name="inkCanvas"
-                      Height="{Binding ElementName=scrollViewer, Path=ActualHeight}"
-                      Width="{Binding ElementName=scrollViewer, Path=ActualWidth}"/>
-            </Grid>
-        </ScrollViewer>
     </Grid>
 </Page>
