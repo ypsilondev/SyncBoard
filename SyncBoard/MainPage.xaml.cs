@@ -7,6 +7,7 @@ using System.Threading;
 using System.Timers;
 using Windows.Data.Json;
 using Windows.Foundation;
+using Windows.Storage.Streams;
 using Windows.UI;
 using Windows.UI.Core;
 using Windows.UI.Input;
@@ -26,7 +27,7 @@ namespace SyncBoard
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private static int EXPAND_MARGIN = 100;
+        private static int EXPAND_MARGIN = 400;
 
         private List<InkStroke> syncedStrokes = new List<InkStroke>();
         private SocketIO socket;
@@ -45,9 +46,10 @@ namespace SyncBoard
 
             // Set initial ink stroke attributes.
             InkDrawingAttributes drawingAttributes = new InkDrawingAttributes();
-            String theme = new Windows.UI.ViewManagement.UISettings().GetColorValue(
-                Windows.UI.ViewManagement.UIColorType.Background).ToString();
-            drawingAttributes.Color = theme == "#FFFFFFFF" ? Windows.UI.Colors.Black : Windows.UI.Colors.White;
+            drawingAttributes.Color =
+                Application.Current.RequestedTheme == ApplicationTheme.Dark
+                ? Windows.UI.Colors.White
+                : Windows.UI.Colors.Black;
             drawingAttributes.IgnorePressure = false;
             drawingAttributes.FitToCurve = true;
             inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
@@ -211,6 +213,16 @@ namespace SyncBoard
                 } else if (dataJson.ContainsKey("success"))
                 {
                     connectRoom();
+                } else if (dataJson.ContainsKey("action") && dataJson.Value<String>("action") == "joined")
+                {
+                    _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                            RunAsync(CoreDispatcherPriority.Normal, () =>
+                            {
+                                userJoinedText.Visibility = Visibility.Visible;
+                                Thread.Sleep(2000);
+                                userJoinedText.Visibility = Visibility.Collapsed;
+                            });
+
                 }
                 
             });
@@ -317,6 +329,7 @@ namespace SyncBoard
                    {
                        inkCanvas.InkPresenter.StrokeContainer.Clear();
                    });
+            // hier
         }
 
         // Call offline mode
@@ -340,6 +353,111 @@ namespace SyncBoard
             if (roomCodeBox.Text.Length == 4 && roomCodeBox.Text != roomCode)
             {
                 connectButton.IsEnabled = true;
+            }
+        }
+
+        // New room
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                   RunAsync(CoreDispatcherPriority.Normal, () =>
+                   {
+                       inkCanvas.InkPresenter.StrokeContainer.Clear();
+                   });
+            socket.DisconnectAsync();
+            roomCode = "";
+            InitSocket();
+        }
+
+        // Export board to GIF
+        private async void exportBoard(object sender, RoutedEventArgs e)
+        {
+            // Get all strokes on the InkCanvas.
+            IReadOnlyList<InkStroke> currentStrokes = inkCanvas.InkPresenter.StrokeContainer.GetStrokes();
+
+            // Strokes present on ink canvas.
+            if (currentStrokes.Count > 0)
+            {
+                // Let users choose their ink file using a file picker.
+                // Initialize the picker.
+                Windows.Storage.Pickers.FileSavePicker savePicker =
+                    new Windows.Storage.Pickers.FileSavePicker();
+                savePicker.SuggestedStartLocation =
+                    Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+                savePicker.FileTypeChoices.Add(
+                    "GIF with embedded ISF",
+                    new List<string>() { ".gif" });
+                savePicker.DefaultFileExtension = ".gif";
+                savePicker.SuggestedFileName = "InkSample";
+
+                // Show the file picker.
+                Windows.Storage.StorageFile file =
+                    await savePicker.PickSaveFileAsync();
+                // When chosen, picker returns a reference to the selected file.
+                if (file != null)
+                {
+                    // Prevent updates to the file until updates are 
+                    // finalized with call to CompleteUpdatesAsync.
+                    Windows.Storage.CachedFileManager.DeferUpdates(file);
+                    // Open a file stream for writing.
+                    IRandomAccessStream stream = await file.OpenAsync(Windows.Storage.FileAccessMode.ReadWrite);
+                    // Write the ink strokes to the output stream.
+                    using (IOutputStream outputStream = stream.GetOutputStreamAt(0))
+                    {
+                        await inkCanvas.InkPresenter.StrokeContainer.SaveAsync(outputStream);
+                        await outputStream.FlushAsync();
+                    }
+                    stream.Dispose();
+
+                    // Finalize write so other apps can update file.
+                    Windows.Storage.Provider.FileUpdateStatus status =
+                        await Windows.Storage.CachedFileManager.CompleteUpdatesAsync(file);
+
+                    if (status == Windows.Storage.Provider.FileUpdateStatus.Complete)
+                    {
+                        // File saved.
+                    }
+                    else
+                    {
+                        // File couldn't be saved.
+                    }
+                }
+                // User selects Cancel and picker returns null.
+                else
+                {
+                    // Operation cancelled.
+                }
+            }
+        }
+
+        // Import board from GIF
+        private async void importBoard(object sender, RoutedEventArgs e)
+        {
+            // Let users choose their ink file using a file picker.
+            // Initialize the picker.
+            Windows.Storage.Pickers.FileOpenPicker openPicker =
+                new Windows.Storage.Pickers.FileOpenPicker();
+            openPicker.SuggestedStartLocation =
+                Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            openPicker.FileTypeFilter.Add(".gif");
+            // Show the file picker.
+            Windows.Storage.StorageFile file = await openPicker.PickSingleFileAsync();
+            // User selects a file and picker returns a reference to the selected file.
+            if (file != null)
+            {
+                // Open a file stream for reading.
+                IRandomAccessStream stream = await file.OpenAsync(Windows.Storage.FileAccessMode.Read);
+                // Read from file.
+                using (var inputStream = stream.GetInputStreamAt(0))
+                {
+                    await inkCanvas.InkPresenter.StrokeContainer.LoadAsync(inputStream);
+                }
+                stream.Dispose();
+            }
+            // User selects Cancel and picker returns null.
+            else
+            {
+                // Operation cancelled.
             }
         }
     }
