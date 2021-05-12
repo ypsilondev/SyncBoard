@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Microsoft.Toolkit.Uwp.Helpers;
+using Newtonsoft.Json.Linq;
 using SocketIOClient;
 using System;
 using System.Collections;
@@ -9,6 +10,7 @@ using System.Threading;
 using System.Timers;
 using Windows.Data.Json;
 using Windows.Foundation;
+using Windows.Graphics.Printing;
 using Windows.Storage.Streams;
 using Windows.UI;
 using Windows.UI.Core;
@@ -19,6 +21,8 @@ using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Media.Imaging;
+using Windows.UI.Xaml.Printing;
 using Windows.UI.Xaml.Shapes;
 
 // Die Elementvorlage "Leere Seite" wird unter https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x407 dokumentiert.
@@ -44,6 +48,8 @@ namespace SyncBoard
         {
             this.InitializeComponent();
 
+            ApplicationView.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.FullScreen;
+
             // Set supported inking device types.
             inkCanvas.InkPresenter.InputDeviceTypes =
                 Windows.UI.Core.CoreInputDeviceTypes.Mouse |
@@ -51,20 +57,21 @@ namespace SyncBoard
 
             // Set initial ink stroke attributes.
             InkDrawingAttributes drawingAttributes = new InkDrawingAttributes();
+            
             drawingAttributes.Color =
                 Application.Current.RequestedTheme == ApplicationTheme.Dark
                 ? Windows.UI.Colors.White
                 : Windows.UI.Colors.Black;
             drawingAttributes.IgnorePressure = false;
+
             drawingAttributes.FitToCurve = true;
             inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
 
             inkCanvas.InkPresenter.StrokesErased += InkPresenter_StrokesErased;
+            inkCanvas.InkPresenter.StrokesCollected += InkPresenter_Drawed;
 
             // Network and sync:
             InitSocket();
-
-            SynchronizationTask();
         }
 
         private void InkPresenter_StrokesErased(InkPresenter sender, InkStrokesErasedEventArgs args)
@@ -75,6 +82,38 @@ namespace SyncBoard
                 eraseIds[i] = reverseStrokes.GetValueOrDefault(args.Strokes.ToArray()[i]);
             }
             CallErasement(eraseIds);
+        }
+
+        private void InkPresenter_Drawed(InkPresenter presenter, InkStrokesCollectedEventArgs args)
+        {
+            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                   RunAsync(CoreDispatcherPriority.Normal, () =>
+                   {
+                       List<InkStroke> toSync = new List<InkStroke>();
+
+                       foreach (var stroke in args.Strokes)
+                       {
+                           foreach (var point in stroke.GetInkPoints())
+                           {
+                               if (point.Position.Y >= inkCanvas.Height - EXPAND_MARGIN)
+                               {
+                                   expandBoard(true);
+                               }
+                               else if (point.Position.X >= inkCanvas.Width - EXPAND_MARGIN)
+                               {
+                                   expandBoard(false);
+                               }
+                           }
+
+                           Guid guid = Guid.NewGuid();
+                           syncedStrokes.Add(guid, stroke);
+                           reverseStrokes.Add(stroke, guid);
+
+                           toSync.Add(stroke);
+                       }
+
+                       if (!offlineMode) SyncData(toSync, "sync");
+                   });
         }
 
         private async void InitSocket()
@@ -116,50 +155,6 @@ namespace SyncBoard
             });
         }
 
-        private async void SynchronizationTask()
-        {
-            System.Timers.Timer aTimer = new System.Timers.Timer(200);
-            aTimer.Elapsed += timerTask;
-            aTimer.AutoReset = true;
-            aTimer.Enabled = true;
-
-        }
-
-        private void timerTask(Object source, ElapsedEventArgs e)
-        {
-            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
-                   RunAsync(CoreDispatcherPriority.Normal, () =>
-                   {
-                       List<InkStroke> toSync = new List<InkStroke>();
-
-                        foreach (var stroke in inkCanvas.InkPresenter.StrokeContainer.GetStrokes())
-                        {
-                            if (!syncedStrokes.Values.Contains(stroke))
-                            {
-                               foreach (var point in stroke.GetInkPoints())
-                               {
-                                   if (point.Position.Y >= inkCanvas.Height - EXPAND_MARGIN)
-                                   {
-                                       expandBoard(true);
-                                   }
-                                   else if (point.Position.X >= inkCanvas.Width - EXPAND_MARGIN)
-                                   {
-                                       expandBoard(false);
-                                   }
-                               }
-
-                               Guid guid = Guid.NewGuid();
-                               syncedStrokes.Add(guid, stroke);
-                               reverseStrokes.Add(stroke, guid);
-
-                               toSync.Add(stroke);
-                            }
-                        }
-
-                       if (!offlineMode) SyncData(toSync, "sync");
-                   });
-        }
-
         private async void ListenIncome()
         {
             socket.On("sync", (data) =>
@@ -198,7 +193,25 @@ namespace SyncBoard
                             InkStrokeBuilder b = new InkStrokeBuilder();
 
                             InkDrawingAttributes da = new InkDrawingAttributes();
-                            da.Color = parseColor(ColorHelper.FromArgb(
+
+                            // Pressure
+                            JObject toolInfo = stroke.Value<JObject>("tool");
+                            if (toolInfo !=null)
+                            {
+                                if (toolInfo.Value<Boolean>("pencil"))
+                                {
+                                    da = InkDrawingAttributes.CreateForPencil();
+                                } else
+                                {
+                                    da.DrawAsHighlighter = toolInfo.Value<Boolean>("marker");
+                                }
+
+                                da.Size = new Size((double)toolInfo.Value<JObject>("size").GetValue("w"),
+                                    (double)toolInfo.Value<JObject>("size").GetValue("h"));
+                            }
+
+                            // Color
+                            da.Color = parseColor(Windows.UI.ColorHelper.FromArgb(
                                 (byte)stroke.Value<JObject>("color").GetValue("A"),
                                 (byte)stroke.Value<JObject>("color").GetValue("R"),
                                 (byte)stroke.Value<JObject>("color").GetValue("G"),
@@ -329,6 +342,18 @@ namespace SyncBoard
 
                 ö.Add("color", color);
                 ö.Add("guid", reverseStrokes.GetValueOrDefault(syncStroke));
+
+                // Send the tool-size
+                JObject size = new JObject();
+                size.Add("w", syncStroke.DrawingAttributes.Size.Width);
+                size.Add("h", syncStroke.DrawingAttributes.Size.Height);
+
+                JObject toolInfo = new JObject();
+                toolInfo.Add("size", size);
+                toolInfo.Add("marker", syncStroke.DrawingAttributes.DrawAsHighlighter);
+                toolInfo.Add("pencil", syncStroke.DrawingAttributes.Kind.Equals(InkDrawingAttributesKind.Pencil));
+
+                ö.Add("tool", toolInfo);
 
                 foreach (var strokePoint in syncStroke.GetInkPoints())
                 {
@@ -558,13 +583,51 @@ namespace SyncBoard
         // Enter fullscreen
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
-            if (ApplicationView.GetForCurrentView().IsFullScreen)
+            if (ApplicationView.GetForCurrentView().IsFullScreenMode)
             {
                 ApplicationView.GetForCurrentView().ExitFullScreenMode();
             } else
             {
                 ApplicationView.GetForCurrentView().TryEnterFullScreenMode();
             }
+
+            fullscreenIcon.IsChecked = ApplicationView.GetForCurrentView().IsFullScreenMode;
+        }
+
+        // Print PDF
+        private async void Printer_Click(object sender, RoutedEventArgs e)
+        {
+            // Create a Bitmap from the strokes.
+            var inkStream = new InMemoryRandomAccessStream();
+            await inkCanvas.InkPresenter.StrokeContainer.SaveAsync(inkStream.GetOutputStreamAt(0));
+            var inkBitmap = new BitmapImage();
+            await inkBitmap.SetSourceAsync(inkStream);
+
+            // Adjust Margin to layout the image properly in the print-page. 
+            var inkBounds = inkCanvas.InkPresenter.StrokeContainer.BoundingRect;
+            var inkMargin = new Thickness(inkBounds.Left, inkBounds.Top, inkCanvas.ActualWidth - inkBounds.Right, inkCanvas.ActualHeight - inkBounds.Bottom);
+
+            // Prepare Viewbox+Image to be printed.
+            var inkViewbox = new Viewbox()
+            {
+                Child = new Image()
+                {
+                    Source = inkBitmap,
+                    Margin = inkMargin
+                },
+                Width = inkCanvas.ActualWidth,
+                Height = inkCanvas.ActualHeight
+            };
+
+            PrintCanvas.Children.Clear();
+            PrintCanvas.Children.Add(inkViewbox);
+
+            var _printHelper = new PrintHelper(PrintCanvas);
+            var printHelperOptions = new PrintHelperOptions();
+            printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Orientation);
+            printHelperOptions.Orientation = PrintOrientation.Portrait;
+
+            await _printHelper.ShowPrintUIAsync("printing InkPen", printHelperOptions, true);
         }
     }
 
