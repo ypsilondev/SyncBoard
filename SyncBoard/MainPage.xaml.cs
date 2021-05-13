@@ -2,28 +2,24 @@
 using Newtonsoft.Json.Linq;
 using SocketIOClient;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Runtime.ConstrainedExecution;
 using System.Threading;
-using System.Timers;
-using Windows.Data.Json;
+using Windows.Data.Pdf;
 using Windows.Foundation;
 using Windows.Graphics.Printing;
+using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.UI;
 using Windows.UI.Core;
-using Windows.UI.Input;
 using Windows.UI.Input.Inking;
+using Windows.UI.Popups;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
-using Windows.UI.Xaml.Printing;
 using Windows.UI.Xaml.Shapes;
 
 // Die Elementvorlage "Leere Seite" wird unter https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x407 dokumentiert.
@@ -35,7 +31,7 @@ namespace SyncBoard
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private static int EXPAND_MARGIN = 400;
+        private static int EXPAND_MARGIN = 600;
 
         private Dictionary<Guid, InkStroke> syncedStrokes = new Dictionary<Guid, InkStroke>();
         private Dictionary<InkStroke, Guid> reverseStrokes = new Dictionary<InkStroke, Guid>();
@@ -46,10 +42,20 @@ namespace SyncBoard
         private String roomCode = "";
 
         private static int PAGE_HEIGHT = 1123, PAGE_WIDTH = 794,
+
             PRINT_RECTANGLE_WIDTH = 794,
             PRINT_RECTANGLE_HEIGHT = 1123,
-            AMOUNT_INITIAL_RECTANGLES = 2;
-        private int rectangleCounter = 0;
+            AMOUNT_INITIAL_RECTANGLES = 2,
+
+            BACKGROUND_DENSITY_DELTA = 20,
+
+            BORDER_EXPANSION = 1128,
+
+            PDF_IMPORT_ZOOM = 1;
+
+        private static double PAGE_SITE_RATIO = (double)PRINT_RECTANGLE_HEIGHT / PRINT_RECTANGLE_WIDTH;
+
+        private uint rectangleCounter = 0, pdfSiteCounter = 0;
 
         public MainPage()
         {
@@ -64,7 +70,7 @@ namespace SyncBoard
 
             // Set initial ink stroke attributes.
             InkDrawingAttributes drawingAttributes = new InkDrawingAttributes();
-            
+
             drawingAttributes.Color =
                 Application.Current.RequestedTheme == ApplicationTheme.Dark
                 ? Windows.UI.Colors.White
@@ -77,8 +83,12 @@ namespace SyncBoard
             inkCanvas.InkPresenter.StrokesErased += InkPresenter_StrokesErased;
             inkCanvas.InkPresenter.StrokesCollected += InkPresenter_Drawed;
 
+
+
+
             // Init background:
             InitializePrintSiteBackground();
+            CreateBackground();
 
             // Network and sync:
             InitSocket();
@@ -96,39 +106,13 @@ namespace SyncBoard
 
         private void InkPresenter_Drawed(InkPresenter presenter, InkStrokesCollectedEventArgs args)
         {
-            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
-                   RunAsync(CoreDispatcherPriority.Normal, () =>
-                   {
-                       List<InkStroke> toSync = new List<InkStroke>();
-
-                       foreach (var stroke in args.Strokes)
-                       {
-                           foreach (var point in stroke.GetInkPoints())
-                           {
-                               if (point.Position.Y >= inkCanvas.Height - EXPAND_MARGIN)
-                               {
-                                   expandBoard(true);
-                               }
-                               else if (point.Position.X >= inkCanvas.Width - EXPAND_MARGIN)
-                               {
-                                   expandBoard(false);
-                               }
-                           }
-
-                           Guid guid = Guid.NewGuid();
-                           syncedStrokes.Add(guid, stroke);
-                           reverseStrokes.Add(stroke, guid);
-
-                           toSync.Add(stroke);
-                       }
-
-                       if (!offlineMode) SyncData(toSync, "sync");
-                   });
+            DrawStrokes(args.Strokes.ToList());
         }
 
         private async void InitSocket()
         {
-            socket = new SocketIO(Network.URL, new SocketIOOptions {
+            socket = new SocketIO(Network.URL, new SocketIOOptions
+            {
                 EIO = 4,
                 Reconnection = true,
                 ReconnectionDelay = 1000,
@@ -141,7 +125,8 @@ namespace SyncBoard
             {
                 await socket.ConnectAsync();
                 ListenIncome();
-            } catch(System.Net.WebSockets.WebSocketException e)
+            }
+            catch (System.Net.WebSockets.WebSocketException e)
             {
                 SetOfflineMode(true);
             }
@@ -173,69 +158,15 @@ namespace SyncBoard
 
                 foreach (var strokePointArray in updateStrokes)
                 {
-                    JObject stroke = (JObject) strokePointArray;
-                    List<InkPoint> inkPoints = new List<InkPoint>();
+                    JObject stroke = (JObject)strokePointArray;
+                    InkStroke c = ParseFromJSON(stroke);
 
-                    foreach (var point in stroke.Value<JArray>("points"))
-                    {
-                        JObject o = (JObject)point;
-                        Point p = new Point(o.Value<float>("x"), o.Value<float>("y"));
-                        InkPoint ip = new InkPoint(p, o.Value<float>("p"));
-                        inkPoints.Add(ip);
-
-                        _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
-                                RunAsync(CoreDispatcherPriority.Low, () =>
-                                {
-                                    if (o.Value<float>("y") >= inkCanvas.Height - EXPAND_MARGIN)
-                                    {
-                                        expandBoard(o.Value<float>("y"));
-                                    }
-                                    else if (o.Value<float>("x") >= inkCanvas.Width - EXPAND_MARGIN)
-                                    {
-                                        expandBoard(o.Value<float>("x"));
-                                    }
-                                });
-                    }
+                    syncedStrokes.Add(Guid.Parse(stroke.Value<String>("guid")), c);
+                    reverseStrokes.Add(c, Guid.Parse(stroke.Value<String>("guid")));
 
                     _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
-                    RunAsync(CoreDispatcherPriority.Low, () =>
+                        RunAsync(CoreDispatcherPriority.Low, () =>
                         {
-                            InkStrokeBuilder b = new InkStrokeBuilder();
-
-                            InkDrawingAttributes da = new InkDrawingAttributes();
-
-                            // Pressure
-                            JObject toolInfo = stroke.Value<JObject>("tool");
-                            if (toolInfo !=null)
-                            {
-                                if (toolInfo.Value<Boolean>("pencil"))
-                                {
-                                    da = InkDrawingAttributes.CreateForPencil();
-                                } else
-                                {
-                                    da.DrawAsHighlighter = toolInfo.Value<Boolean>("marker");
-                                }
-
-                                da.Size = new Size((double)toolInfo.Value<JObject>("size").GetValue("w"),
-                                    (double)toolInfo.Value<JObject>("size").GetValue("h"));
-                            }
-
-                            // Color
-                            da.Color = parseColor(Windows.UI.ColorHelper.FromArgb(
-                                (byte)stroke.Value<JObject>("color").GetValue("A"),
-                                (byte)stroke.Value<JObject>("color").GetValue("R"),
-                                (byte)stroke.Value<JObject>("color").GetValue("G"),
-                                (byte)stroke.Value<JObject>("color").GetValue("B")
-                            ));
-                            da.IgnorePressure = false;
-                            da.FitToCurve = true;
-
-                            b.SetDefaultDrawingAttributes(da);
-                            InkStroke c = b.CreateStrokeFromInkPoints(inkPoints, Matrix3x2.Identity);
-
-                            syncedStrokes.Add(Guid.Parse(stroke.Value<String>("guid")), c);
-                            reverseStrokes.Add(c, Guid.Parse(stroke.Value<String>("guid")));
-
                             inkCanvas.InkPresenter.StrokeContainer.AddStroke(c);
                         });
                 }
@@ -244,7 +175,7 @@ namespace SyncBoard
             socket.On("cmd", (data) =>
             {
                 JObject dataJson = data.GetValue<JObject>();
-                
+
                 if (dataJson.ContainsKey("token"))
                 {
                     _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
@@ -254,10 +185,12 @@ namespace SyncBoard
                                 roomCodeBox.Visibility = Visibility.Visible;
                                 roomCode = dataJson.Value<String>("token");
                             });
-                } else if (dataJson.ContainsKey("success"))
+                }
+                else if (dataJson.ContainsKey("success"))
                 {
                     connectRoom();
-                } else if (dataJson.ContainsKey("action"))
+                }
+                else if (dataJson.ContainsKey("action"))
                 {
                     if (dataJson.Value<String>("action") == "joined")
                     {
@@ -275,7 +208,8 @@ namespace SyncBoard
                             {
                                 userJoinedText.Visibility = Visibility.Collapsed;
                             });
-                    } else if (dataJson.Value<String>("action") == "sendBoard")
+                    }
+                    else if (dataJson.Value<String>("action") == "sendBoard")
                     {
                         _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                             RunAsync(CoreDispatcherPriority.Normal, () =>
@@ -288,7 +222,8 @@ namespace SyncBoard
 
                                 SyncData(strokes, "init-sync");
                             });
-                    } else if (dataJson.Value<String>("action") == "left")
+                    }
+                    else if (dataJson.Value<String>("action") == "left")
                     {
                         _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                             RunAsync(CoreDispatcherPriority.Normal, () =>
@@ -305,19 +240,22 @@ namespace SyncBoard
                                 userJoinedText.Visibility = Visibility.Collapsed;
                             });
                     }
+                    else if (dataJson.Value<String>("action") == "clearRoom")
+                    {
+                        ClearRoom();
+                    }
                 }
-                
+
             });
 
-            socket.On("erase", (data) => {
+            socket.On("erase", (data) =>
+            {
                 Guid[] toEraseIds = data.GetValue<Guid[]>();
                 foreach (Guid eraseId in toEraseIds)
                 {
                     _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                    RunAsync(CoreDispatcherPriority.Normal, () =>
                    {
-                       System.Diagnostics.Debug.WriteLine(eraseId);
-
                        if (syncedStrokes.GetValueOrDefault(eraseId) != null)
                        {
                            var inkPoints = syncedStrokes.GetValueOrDefault(eraseId).GetInkPoints().ToArray();
@@ -341,43 +279,7 @@ namespace SyncBoard
 
             toSync.ForEach(syncStroke =>
             {
-                JArray oneStrokePoints = new JArray();
-                JObject ö = new JObject();
-
-                JObject color = new JObject();
-                color.Add("A", syncStroke.DrawingAttributes.Color.A);
-                color.Add("R", syncStroke.DrawingAttributes.Color.R);
-                color.Add("G", syncStroke.DrawingAttributes.Color.G);
-                color.Add("B", syncStroke.DrawingAttributes.Color.B);
-
-                ö.Add("color", color);
-                ö.Add("guid", reverseStrokes.GetValueOrDefault(syncStroke));
-
-                // Send the tool-size
-                JObject size = new JObject();
-                size.Add("w", syncStroke.DrawingAttributes.Size.Width);
-                size.Add("h", syncStroke.DrawingAttributes.Size.Height);
-
-                JObject toolInfo = new JObject();
-                toolInfo.Add("size", size);
-                toolInfo.Add("marker", syncStroke.DrawingAttributes.DrawAsHighlighter);
-                toolInfo.Add("pencil", syncStroke.DrawingAttributes.Kind.Equals(InkDrawingAttributesKind.Pencil));
-
-                ö.Add("tool", toolInfo);
-
-                foreach (var strokePoint in syncStroke.GetInkPoints())
-                {
-                    JObject o = new JObject();
-                    o.Add("x", strokePoint.Position.X);
-                    o.Add("y", strokePoint.Position.Y);
-                    o.Add("p", strokePoint.Pressure);
-
-                    oneStrokePoints.Add(o);
-                }
-
-                ö.Add("points", oneStrokePoints);
-
-                json.Add(ö);
+                json.Add(CreateJSONStrokeFrom(syncStroke));
             });
 
             socket.EmitAsync(channel, json);
@@ -393,52 +295,70 @@ namespace SyncBoard
             socket.EmitAsync("erase", erasedIds);
         }
 
-        private Color parseColor(Color color)
-        {
-            String theme = new Windows.UI.ViewManagement.UISettings().GetColorValue(
-                Windows.UI.ViewManagement.UIColorType.Background).ToString();
-            
-            if (color.Equals(Colors.White) && theme == "#FFFFFFFF")
-            {
-                return Colors.Black;
-            } else if (color.Equals(Colors.Black) && theme != "#FFFFFFFF")
-            {
-                return Colors.White;
-            }
-
-            return color;
-        }
-
         private void expandBoard(bool bottom)
         {
             if (bottom)
             {
-                outputGrid.Height += 1200;
-                inkCanvas.Height += 1200;
-            } else
+                //outputGrid.Height += BORDER_EXPANSION;
+                //inkCanvas.Height += BORDER_EXPANSION;
+                expandBoard(0, BORDER_EXPANSION);
+            }
+            else
             {
-                outputGrid.Width += 1200;
-                inkCanvas.Width += 1200;
+                expandBoard(BORDER_EXPANSION, 0);
+                //outputGrid.Width += BORDER_EXPANSION;
+                //inkCanvas.Width += BORDER_EXPANSION;
             }
 
-            if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
+            /*if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
+            {
+                for (int i = 0; i <= ((inkCanvas.Height - rectangleCounter * PRINT_RECTANGLE_HEIGHT) / BORDER_EXPANSION) + 1; i++)
+                {
+                    CreateNewPrintSiteBackground();
+                }
+            }
+            CreateBackground();*/
+        }
+
+        private void expandBoard(int x, int y)
+        {
+            outputGrid.Height += y;
+            inkCanvas.Height += y;
+
+            outputGrid.Width += x;
+            inkCanvas.Width += x;
+
+            while (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
             {
                 CreateNewPrintSiteBackground();
             }
+
+            /*if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
+            {
+                for (int i = 0; i <= ((inkCanvas.Height - rectangleCounter * PRINT_RECTANGLE_HEIGHT) / BORDER_EXPANSION) + 1; i++)
+                {
+                    CreateNewPrintSiteBackground();
+                }
+            }*/
+            CreateBackground();
         }
 
         private void expandBoard(float offset)
         {
-            outputGrid.Height = offset + 1200;
-            inkCanvas.Height = offset + 1200;
+            outputGrid.Height = offset + BORDER_EXPANSION;
+            inkCanvas.Height = offset + BORDER_EXPANSION;
 
-            outputGrid.Width = offset + 1200;
-            inkCanvas.Width = offset + 1200;
+            outputGrid.Width = offset + BORDER_EXPANSION;
+            inkCanvas.Width = offset + BORDER_EXPANSION;
 
             if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
             {
-                CreateNewPrintSiteBackground();
+                for (int i = 0; i <= ((inkCanvas.Height - rectangleCounter * PRINT_RECTANGLE_HEIGHT) / BORDER_EXPANSION) + 1; i++)
+                {
+                    CreateNewPrintSiteBackground();
+                }
             }
+            CreateBackground();
         }
 
         private void SetOfflineMode(bool set)
@@ -498,11 +418,7 @@ namespace SyncBoard
         // New room
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
-                   RunAsync(CoreDispatcherPriority.Normal, () =>
-                   {
-                       inkCanvas.InkPresenter.StrokeContainer.Clear();
-                   });
+            ClearRoom();
             socket.DisconnectAsync();
             roomCode = "";
             InitSocket();
@@ -606,7 +522,8 @@ namespace SyncBoard
             if (ApplicationView.GetForCurrentView().IsFullScreenMode)
             {
                 ApplicationView.GetForCurrentView().ExitFullScreenMode();
-            } else
+            }
+            else
             {
                 ApplicationView.GetForCurrentView().TryEnterFullScreenMode();
             }
@@ -650,7 +567,6 @@ namespace SyncBoard
         {
             // Calculate amount of required pages
             int pageCount = (int)inkCanvas.ActualHeight / PAGE_HEIGHT + 1;
-            System.Diagnostics.Debug.WriteLine("Creating print with " + pageCount + " page(s)");
 
             // Clear the print-canvas
             PrintCanvas.Children.Clear();
@@ -659,7 +575,55 @@ namespace SyncBoard
             List<Panel> pagePanels = new List<Panel>();
             for (int i = 0; i < pageCount; i++)
             {
-                pagePanels.Add(new ItemsStackPanel());
+                Panel panel = new ItemsStackPanel();
+                panel.Height = PRINT_RECTANGLE_HEIGHT;
+                panel.Width = PRINT_RECTANGLE_WIDTH;
+                panel.Margin = new Thickness(0, 0, 0, 0);
+                pagePanels.Add(panel);
+            }
+
+            // Paint background PFDs
+            foreach (Viewbox pdfSite in imports.Children)
+            {
+                int page = (int)(pdfSite.Translation.Y / PAGE_HEIGHT);
+                int pageOffset = 0;
+
+
+
+                while (pdfSite.Translation.Y + pdfSite.Height >= PAGE_HEIGHT * (page + pageOffset))
+                {
+                    System.Diagnostics.Debug.WriteLine(pdfSite.Translation.Y + pdfSite.Height + "_" + PAGE_HEIGHT * (page + pageOffset));
+                    Image img = (Image)pdfSite.Child;
+                    BitmapImage img2 = (BitmapImage)img.Source;
+                    /*Viewbox v = new Viewbox()
+                    {
+                        Child = new Image()
+                        {
+                            Source = img.Source,
+                            Margin = new Thickness(0, 0, 0, 0),
+
+                            MaxWidth = PRINT_RECTANGLE_WIDTH,
+                            MaxHeight = PRINT_RECTANGLE_HEIGHT
+                        },
+                        VerticalAlignment = VerticalAlignment.Center,
+                        HorizontalAlignment = HorizontalAlignment.Center
+                    };*/
+
+
+
+                    Viewbox v = CreateBackgroundImageViewbox(img2, 0);
+
+                    //v.VerticalAlignment = VerticalAlignment.Center;
+                    //v.HorizontalAlignment = HorizontalAlignment.Center;
+
+                    //v.Width = PRINT_RECTANGLE_WIDTH;
+                    //v.Height = PRINT_RECTANGLE_HEIGHT;
+                    //v.Margin = new Thickness(0,0,0,0);
+                    //v.Translation = new Vector3((int)(PRINT_RECTANGLE_WIDTH - v.Width)/2, (int)(PRINT_RECTANGLE_HEIGHT - v.Height) / 2, 0);
+
+                    pagePanels[page + pageOffset].Children.Add(v);
+                    pageOffset++;
+                }
             }
 
             // Paint the strokes to the pages          
@@ -688,14 +652,29 @@ namespace SyncBoard
             }
 
             // Open print-GUI
-            var _printHelper = new PrintHelper(PrintCanvas);
-            var printHelperOptions = new PrintHelperOptions();
-            printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Orientation);
-            printHelperOptions.Orientation = PrintOrientation.Portrait;
+            try
+            {
+                var _printHelper = new PrintHelper(PrintCanvas);
+                var printHelperOptions = new PrintHelperOptions();
+                printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Orientation);
+                printHelperOptions.Orientation = PrintOrientation.Portrait;
+                printHelperOptions.PrintQuality = PrintQuality.High;
 
-            await _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, true);
+                _printHelper.OnPrintSucceeded += PrintSucceded;
+
+                await _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, true);
+            }
+            catch (Exception ignored)
+            {
+
+            }
         }
 
+        private void PrintSucceded()
+        {
+            System.Diagnostics.Debug.WriteLine("PRINT DONE");
+            this.DisplayMessage("PRINT DONE!");
+        }
 
 
 
@@ -714,6 +693,7 @@ namespace SyncBoard
             rectangle.Width = PRINT_RECTANGLE_WIDTH;
             rectangle.Height = PRINT_RECTANGLE_HEIGHT;
             rectangle.Margin = new Thickness(0, PRINT_RECTANGLE_HEIGHT * rectangleCounter, 0, 0);
+            rectangle.Fill = new SolidColorBrush(Color.FromArgb(5, 255, 255, 255));
             rectangle.Stroke = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
             rectangle.VerticalAlignment = VerticalAlignment.Top;
             rectangle.HorizontalAlignment = HorizontalAlignment.Left;
@@ -732,6 +712,394 @@ namespace SyncBoard
             {
                 printBackgrounds.Visibility = Visibility.Collapsed;
             }
+        }
+
+
+        // Background lines
+        private void CreateBackground()
+        {
+            // Horizontal lines
+            int start = (int)Math.Max(inkCanvas.Height - BORDER_EXPANSION, 0);
+            if (inkCanvas.Height - BORDER_EXPANSION < BORDER_EXPANSION)
+            {
+                start = 0;
+            }
+            for (int i = start; i <= inkCanvas.Height; i += BACKGROUND_DENSITY_DELTA)
+            {
+                Line line = new Line();
+                line.X1 = 0;
+                line.X2 = Window.Current.Bounds.Width;
+                line.Y1 = i;
+                line.Y2 = i;
+
+                line.Stroke = new SolidColorBrush(Color.FromArgb(50, 21, 21, 21));
+                line.StrokeThickness = 1.0;
+                background.Children.Add(line);
+            }
+
+            // Vertical lines
+            for (int i = 0; i <= Window.Current.Bounds.Width; i += BACKGROUND_DENSITY_DELTA)
+            {
+                Line line = new Line();
+                line.X1 = i;
+                line.X2 = i;
+                line.Y1 = start;
+                line.Y2 = inkCanvas.Height;
+
+                line.Stroke = new SolidColorBrush(Color.FromArgb(50, 21, 21, 21));
+                line.StrokeThickness = 1.0;
+                background.Children.Add(line);
+            }
+        }
+
+        private void ToggleBackgroundLines(object sender, RoutedEventArgs e)
+        {
+            if (backgroundToggle.IsChecked == true)
+            {
+                background.Visibility = Visibility.Visible;
+                CreateBackground();
+            }
+            else
+            {
+                background.Visibility = Visibility.Collapsed;
+            }
+        }
+
+
+        // Import PDF
+        private async void ImportPDF(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Windows.Storage.Pickers.FileOpenPicker openPicker =
+                new Windows.Storage.Pickers.FileOpenPicker();
+                openPicker.SuggestedStartLocation =
+                    Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+                openPicker.FileTypeFilter.Add(".pdf");
+
+                // Show the file picker.
+                Windows.Storage.StorageFile f = await openPicker.PickSingleFileAsync();
+                PdfDocument doc = await PdfDocument.LoadFromFileAsync(f);
+
+                Load(doc);
+            }
+            catch (Exception ignored)
+            {
+
+            }
+        }
+
+        private async void Load(PdfDocument pdfDoc)
+        {
+            this.expandBoard(0, (int)(pdfDoc.PageCount + 1) * PRINT_RECTANGLE_HEIGHT);
+
+            for (uint i = 0; i < pdfDoc.PageCount; i++)
+            {
+                /*BitmapImage image = new BitmapImage();
+
+                var page = pdfDoc.GetPage(i);
+
+
+                using (InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream())
+                {
+                    await page.RenderToStreamAsync(stream, new PdfPageRenderOptions() { DestinationHeight = (uint)PRINT_RECTANGLE_HEIGHT*2 });
+                    await image.SetSourceAsync(stream);
+                }
+                Viewbox site = CreateBackgroundImageViewbox(image, i + pdfSiteCounter);
+                imports.Children.Add(site);*/
+                RenderImage(pdfDoc, i, (uint)(i + pdfSiteCounter));
+            }
+
+            pdfSiteCounter += (uint)pdfDoc.PageCount;
+        }
+
+        private async void RenderImage(PdfDocument pdfDoc, uint i, uint pageNr)
+        {
+            BitmapImage image = new BitmapImage();
+
+            var page = pdfDoc.GetPage(i);
+
+            using (InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream())
+            {
+                await page.RenderToStreamAsync(stream, new PdfPageRenderOptions() { DestinationHeight = (uint)(PRINT_RECTANGLE_HEIGHT * PDF_IMPORT_ZOOM) });
+                await image.SetSourceAsync(stream);
+            }
+            Viewbox site = CreateBackgroundImageViewbox(image, pageNr);
+            imports.Children.Add(site);
+        }
+
+        private Viewbox CreateBackgroundImageViewbox(BitmapImage image, uint page)
+        {
+            // FIXME weird issue when mixing Hoch und Querformat
+            double imageSiteRatio = (double)image.PixelHeight / image.PixelWidth;
+
+            int imgRenderWidth;
+            int imgRenderHeight;
+
+            if (imageSiteRatio <= PAGE_SITE_RATIO)
+            {
+                imgRenderWidth = PRINT_RECTANGLE_WIDTH;
+                imgRenderHeight = (int)(imageSiteRatio * PRINT_RECTANGLE_WIDTH);
+            }
+            else
+            {
+                imgRenderWidth = (int)(imageSiteRatio * PRINT_RECTANGLE_HEIGHT);
+                imgRenderHeight = PRINT_RECTANGLE_HEIGHT;
+            }
+
+            Viewbox site = new Viewbox()
+            {
+                Child = new Image()
+                {
+                    Source = image,
+                    Width = imgRenderWidth,
+                    Height = imgRenderHeight
+                },
+                Width = imgRenderWidth,
+                Height = imgRenderHeight
+            };
+
+            site.Translation = new Vector3((int)(PRINT_RECTANGLE_WIDTH - imgRenderWidth) / 2, page * PRINT_RECTANGLE_HEIGHT + (int)(PRINT_RECTANGLE_HEIGHT - imgRenderHeight) / 2, 0);
+            return site;
+        }
+
+        // Create JSON export
+        private async void CreateJSONExport(object sender, RoutedEventArgs e)
+        {
+            JArray board = new JArray();
+
+            foreach (Guid key in syncedStrokes.Keys)
+            {
+                board.Add(CreateJSONStrokeFrom(syncedStrokes.GetValueOrDefault(key)));
+            }
+
+            try
+            {
+                Windows.Storage.Pickers.FileSavePicker savePicker =
+                    new Windows.Storage.Pickers.FileSavePicker();
+                savePicker.SuggestedStartLocation =
+                    Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+                savePicker.FileTypeChoices.Add(
+                    "Syncboard JSON",
+                    new List<string>() { ".json" });
+                savePicker.DefaultFileExtension = ".json";
+                savePicker.SuggestedFileName = "export";
+
+                StorageFile sampleFile = await savePicker.PickSaveFileAsync();
+
+                await Windows.Storage.FileIO.WriteTextAsync(sampleFile, board.ToString());
+            }
+            catch (Exception ignored)
+            {
+
+            }
+        }
+
+        private JObject CreateJSONStrokeFrom(InkStroke syncStroke)
+        {
+            JObject ö = new JObject();
+
+            JObject color = new JObject();
+            color.Add("A", syncStroke.DrawingAttributes.Color.A);
+            color.Add("R", syncStroke.DrawingAttributes.Color.R);
+            color.Add("G", syncStroke.DrawingAttributes.Color.G);
+            color.Add("B", syncStroke.DrawingAttributes.Color.B);
+
+            ö.Add("color", color);
+            ö.Add("guid", reverseStrokes.GetValueOrDefault(syncStroke));
+
+            // Send the tool-size
+            JObject size = new JObject();
+            size.Add("w", syncStroke.DrawingAttributes.Size.Width);
+            size.Add("h", syncStroke.DrawingAttributes.Size.Height);
+
+            JObject toolInfo = new JObject();
+            toolInfo.Add("size", size);
+            toolInfo.Add("marker", syncStroke.DrawingAttributes.DrawAsHighlighter);
+            toolInfo.Add("pencil", syncStroke.DrawingAttributes.Kind.Equals(InkDrawingAttributesKind.Pencil));
+
+            ö.Add("tool", toolInfo);
+
+            JArray oneStrokePoints = new JArray();
+            foreach (var strokePoint in syncStroke.GetInkPoints())
+            {
+                JObject o = new JObject();
+                o.Add("x", strokePoint.Position.X);
+                o.Add("y", strokePoint.Position.Y);
+                o.Add("p", strokePoint.Pressure);
+
+                oneStrokePoints.Add(o);
+            }
+
+            ö.Add("points", oneStrokePoints);
+
+            return ö;
+        }
+
+        // Load from JSON file
+        private async void LoadJSON(object sender, RoutedEventArgs e)
+        {
+            Windows.Storage.Pickers.FileOpenPicker openPicker =
+            new Windows.Storage.Pickers.FileOpenPicker();
+            openPicker.SuggestedStartLocation =
+                Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            openPicker.FileTypeFilter.Add(".json");
+
+            // Show the file picker.
+            Windows.Storage.StorageFile f = await openPicker.PickSingleFileAsync();
+            String text = await Windows.Storage.FileIO.ReadTextAsync(f);
+
+            JArray board = JArray.Parse(text);
+            ClearRoom();
+
+            List<InkStroke> syncingStrokes = new List<InkStroke>();
+            foreach (JObject obj in board)
+            {
+                InkStroke c = ParseFromJSON(obj);
+
+                _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                    RunAsync(CoreDispatcherPriority.Low, () =>
+                    {
+                        inkCanvas.InkPresenter.StrokeContainer.AddStroke(c);
+                    });
+
+                syncingStrokes.Add(c);
+            }
+
+            DrawStrokes(syncingStrokes);
+        }
+
+        private InkStroke ParseFromJSON(JObject stroke)
+        {
+            List<InkPoint> inkPoints = new List<InkPoint>();
+
+            foreach (var point in stroke.Value<JArray>("points"))
+            {
+                JObject o = (JObject)point;
+                Point p = new Point(o.Value<float>("x"), o.Value<float>("y"));
+                InkPoint ip = new InkPoint(p, o.Value<float>("p"));
+                inkPoints.Add(ip);
+
+                _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                        RunAsync(CoreDispatcherPriority.Low, () =>
+                        {
+                            if (o.Value<float>("y") >= inkCanvas.Height - EXPAND_MARGIN)
+                            {
+                                expandBoard(o.Value<float>("y"));
+                            }
+                            else if (o.Value<float>("x") >= inkCanvas.Width - EXPAND_MARGIN)
+                            {
+                                expandBoard(o.Value<float>("x"));
+                            }
+                        });
+            }
+
+            InkStrokeBuilder b = new InkStrokeBuilder();
+            InkDrawingAttributes da = new InkDrawingAttributes();
+
+            // Pressure
+            JObject toolInfo = stroke.Value<JObject>("tool");
+            if (toolInfo != null)
+            {
+                if (toolInfo.Value<Boolean>("pencil"))
+                {
+                    da = InkDrawingAttributes.CreateForPencil();
+                }
+                else
+                {
+                    da.DrawAsHighlighter = toolInfo.Value<Boolean>("marker");
+                }
+
+                da.Size = new Size((double)toolInfo.Value<JObject>("size").GetValue("w"),
+                            (double)toolInfo.Value<JObject>("size").GetValue("h"));
+            }
+
+            // Color
+            da.Color = Windows.UI.ColorHelper.FromArgb(
+                (byte)stroke.Value<JObject>("color").GetValue("A"),
+                (byte)stroke.Value<JObject>("color").GetValue("R"),
+                (byte)stroke.Value<JObject>("color").GetValue("G"),
+                (byte)stroke.Value<JObject>("color").GetValue("B")
+            );
+            da.IgnorePressure = false;
+            da.FitToCurve = true;
+
+            b.SetDefaultDrawingAttributes(da);
+            InkStroke c = b.CreateStrokeFromInkPoints(inkPoints, Matrix3x2.Identity);
+
+            return c;
+        }
+
+        private void ClearRoom()
+        {
+            pdfSiteCounter = 0;
+            syncedStrokes.Clear();
+            reverseStrokes.Clear();
+
+            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                   RunAsync(CoreDispatcherPriority.Normal, () =>
+                   {
+                       inkCanvas.InkPresenter.StrokeContainer.Clear();
+                       imports.Children.Clear();
+                   });
+        }
+
+        private void EmitRoomClear()
+        {
+            JObject emit = new JObject();
+            emit.Add("action", "clearRoom");
+            socket.EmitAsync("cmd", emit.ToString());
+        }
+
+        private void DrawStrokes(List<InkStroke> strokes)
+        {
+            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                   RunAsync(CoreDispatcherPriority.Normal, () =>
+                   {
+                       List<InkStroke> toSync = new List<InkStroke>();
+
+                       foreach (var stroke in strokes)
+                       {
+                           foreach (var point in stroke.GetInkPoints())
+                           {
+                               if (point.Position.Y >= inkCanvas.Height - EXPAND_MARGIN)
+                               {
+                                   expandBoard(true);
+                               }
+                               else if (point.Position.X >= inkCanvas.Width - EXPAND_MARGIN)
+                               {
+                                   expandBoard(false);
+                               }
+                           }
+
+                           Guid guid = Guid.NewGuid();
+                           syncedStrokes.Add(guid, stroke);
+                           reverseStrokes.Add(stroke, guid);
+
+                           toSync.Add(stroke);
+                       }
+
+                       if (!offlineMode) SyncData(toSync, "sync");
+                   });
+        }
+
+        private async void DisplayMessage(String msg)
+        {
+
+            var messageDialog = new MessageDialog(msg);
+
+            messageDialog.Commands.Add(new UICommand(
+                "Close"));
+
+            // Set the command that will be invoked by default
+            messageDialog.DefaultCommandIndex = 0;
+
+            // Set the command to be invoked when escape is pressed
+            messageDialog.CancelCommandIndex = 1;
+
+            // Show the message dialog
+            await messageDialog.ShowAsync();
+
         }
     }
 }
