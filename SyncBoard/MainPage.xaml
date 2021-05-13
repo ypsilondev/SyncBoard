@@ -21,11 +21,10 @@
                   Height="892"
                   Width="1500">
                 <Canvas x:Name="PrintCanvas" Opacity="0"/>
-                <Rectangle Stroke="#FF818181" HorizontalAlignment="Left" Width="794" Height="1123"
-                           VerticalAlignment="Top"/>
+                <Grid x:Name="printBackgrounds"></Grid>
                 <InkCanvas x:Name="inkCanvas"
-                      Height="1218"
-                      Width="1843" VerticalAlignment="Top" HorizontalAlignment="Left"/>
+                   Height="1218"
+                   Width="1843" VerticalAlignment="Top" HorizontalAlignment="Left"/>
             </Grid>
         </ScrollViewer>
 
@@ -48,14 +47,18 @@
                      x:Name="roomCodeBox" TextAlignment="Center" TextChanged="roomCodeBox_TextChanged" HorizontalAlignment="Right" Width="86"/>
             <Button Content="Beitreten" Margin="0,0,120,0" RenderTransformOrigin="0.483,0.508" IsEnabled="False"
                     x:Name="connectButton" Click="connectButton_Click" HorizontalAlignment="Right" Width="76"/>
-            <Button Content="Exportieren" Margin="207,0,0,0" Click="exportBoard"/>
-            <Button Content="Laden" Margin="318,0,0,0" Click="importBoard"/>
-            <TextBlock HorizontalAlignment="Left" Margin="323,0,0,0" Text="A User joined your Board" TextWrapping="Wrap"
-                       VerticalAlignment="Center" x:Name="userJoinedText" Visibility="Collapsed"/>
+            <Button Content="Exportieren" Margin="313,10,0,0" Click="exportBoard" VerticalAlignment="Top"/>
+            <Button Content="Laden" Margin="424,10,0,0" Click="importBoard" VerticalAlignment="Top"/>
+            <TextBlock Margin="0,15,317,0" Text="A User joined your Board" TextWrapping="Wrap"
+                       VerticalAlignment="Top" x:Name="userJoinedText" Visibility="Collapsed" HorizontalAlignment="Right" Width="155"/>
             <AppBarToggleButton Icon="Accept" Label="Vollbild"
                                 Width="63"
                                 Click="Button_Click_1" x:Name="fullscreenIcon"/>
-            <Button Content="Drucken" Margin="399,0,0,0" Click="Printer_Click"/>
+            <Button Content="Drucken" Margin="505,10,0,0" Click="Printer_Click" VerticalAlignment="Top"/>
+            <AppBarToggleButton x:Name="togglePrintBackground" Icon="Accept"
+                                Label="Druckvorschau" Margin="171,0,0,0"
+                                VerticalAlignment="Center" Width="91" IsChecked="True"
+                                Tapped="TogglePrintSiteBackgrounds"/>
         </Grid>
         <InkToolbar x:Name="inkToolbar"
                     VerticalAlignment="Top"

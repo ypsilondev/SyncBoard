@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.ConstrainedExecution;
 using System.Threading;
 using System.Timers;
 using Windows.Data.Json;
@@ -44,6 +45,12 @@ namespace SyncBoard
 
         private String roomCode = "";
 
+        private static int PAGE_HEIGHT = 1123, PAGE_WIDTH = 794,
+            PRINT_RECTANGLE_WIDTH = 794,
+            PRINT_RECTANGLE_HEIGHT = 1123,
+            AMOUNT_INITIAL_RECTANGLES = 2;
+        private int rectangleCounter = 0;
+
         public MainPage()
         {
             this.InitializeComponent();
@@ -69,6 +76,9 @@ namespace SyncBoard
 
             inkCanvas.InkPresenter.StrokesErased += InkPresenter_StrokesErased;
             inkCanvas.InkPresenter.StrokesCollected += InkPresenter_Drawed;
+
+            // Init background:
+            InitializePrintSiteBackground();
 
             // Network and sync:
             InitSocket();
@@ -178,11 +188,11 @@ namespace SyncBoard
                                 {
                                     if (o.Value<float>("y") >= inkCanvas.Height - EXPAND_MARGIN)
                                     {
-                                        expandBoard(true, o.Value<float>("y"));
+                                        expandBoard(o.Value<float>("y"));
                                     }
                                     else if (o.Value<float>("x") >= inkCanvas.Width - EXPAND_MARGIN)
                                     {
-                                        expandBoard(false, o.Value<float>("x"));
+                                        expandBoard(o.Value<float>("x"));
                                     }
                                 });
                     }
@@ -410,15 +420,25 @@ namespace SyncBoard
                 outputGrid.Width += 1200;
                 inkCanvas.Width += 1200;
             }
+
+            if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
+            {
+                CreateNewPrintSiteBackground();
+            }
         }
 
-        private void expandBoard(bool bottom, float offset)
+        private void expandBoard(float offset)
         {
             outputGrid.Height = offset + 1200;
             inkCanvas.Height = offset + 1200;
 
             outputGrid.Width = offset + 1200;
             inkCanvas.Width = offset + 1200;
+
+            if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
+            {
+                CreateNewPrintSiteBackground();
+            }
         }
 
         private void SetOfflineMode(bool set)
@@ -594,42 +614,124 @@ namespace SyncBoard
             fullscreenIcon.IsChecked = ApplicationView.GetForCurrentView().IsFullScreenMode;
         }
 
+        private Polyline CreatePolyLineFromStroke(InkStroke stroke)
+        {
+            var polyLine = new Polyline();
+            polyLine.Stroke = new SolidColorBrush(stroke.DrawingAttributes.Color);
+            if (stroke.DrawingAttributes.Kind.Equals(InkDrawingAttributesKind.Pencil))
+            {
+                polyLine.StrokeDashArray = new DoubleCollection();
+                polyLine.StrokeDashArray.Add(1);
+                polyLine.StrokeDashArray.Add(0.3);
+            }
+            if (stroke.DrawingAttributes.DrawAsHighlighter)
+            {
+                polyLine.Opacity = 0.5;
+            }
+            polyLine.StrokeThickness = stroke.DrawingAttributes.Size.Height;
+            var points = new PointCollection();
+            foreach (var point in stroke.GetInkPoints())
+            {
+                points.Add(point.Position);
+            }
+            polyLine.Points = points;
+
+            return polyLine;
+        }
+
+        private Polyline TranslatePolyLineToPage(Polyline polyLine, int page)
+        {
+            polyLine.Translation = new Vector3(0, -PAGE_HEIGHT * page, 0);
+            return polyLine;
+        }
+
         // Print PDF
         private async void Printer_Click(object sender, RoutedEventArgs e)
         {
-            // Create a Bitmap from the strokes.
-            var inkStream = new InMemoryRandomAccessStream();
-            await inkCanvas.InkPresenter.StrokeContainer.SaveAsync(inkStream.GetOutputStreamAt(0));
-            var inkBitmap = new BitmapImage();
-            await inkBitmap.SetSourceAsync(inkStream);
+            // Calculate amount of required pages
+            int pageCount = (int)inkCanvas.ActualHeight / PAGE_HEIGHT + 1;
+            System.Diagnostics.Debug.WriteLine("Creating print with " + pageCount + " page(s)");
 
-            // Adjust Margin to layout the image properly in the print-page. 
-            var inkBounds = inkCanvas.InkPresenter.StrokeContainer.BoundingRect;
-            var inkMargin = new Thickness(inkBounds.Left, inkBounds.Top, inkCanvas.ActualWidth - inkBounds.Right, inkCanvas.ActualHeight - inkBounds.Bottom);
-
-            // Prepare Viewbox+Image to be printed.
-            var inkViewbox = new Viewbox()
-            {
-                Child = new Image()
-                {
-                    Source = inkBitmap,
-                    Margin = inkMargin
-                },
-                Width = inkCanvas.ActualWidth,
-                Height = inkCanvas.ActualHeight
-            };
-
+            // Clear the print-canvas
             PrintCanvas.Children.Clear();
-            PrintCanvas.Children.Add(inkViewbox);
 
+            // Setup the required pages
+            List<Panel> pagePanels = new List<Panel>();
+            for (int i = 0; i < pageCount; i++)
+            {
+                pagePanels.Add(new ItemsStackPanel());
+            }
+
+            // Paint the strokes to the pages          
+            foreach (var stroke in inkCanvas.InkPresenter.StrokeContainer.GetStrokes())
+            {
+                int page = (int)(stroke.BoundingRect.Top / PAGE_HEIGHT);
+                int pageOffset = 0;
+
+                while (stroke.BoundingRect.Bottom > PAGE_HEIGHT * (page + pageOffset))
+                {
+                    var polyLine = this.CreatePolyLineFromStroke(stroke);
+                    //polyLine2.Translation = new Vector3(0, -PAGE_HEIGHT * (page + 1), 0);
+                    this.TranslatePolyLineToPage(polyLine, page + pageOffset);
+                    pagePanels[page + pageOffset].Children.Add(polyLine);
+                    pageOffset++;
+                }
+            }
+
+            // Add all pages to the output (except blanks)
+            for (int i = 0; i < pageCount; i++)
+            {
+                if (pagePanels[i].Children.Count > 0)
+                {
+                    PrintCanvas.Children.Add(pagePanels[i]);
+                }
+            }
+
+            // Open print-GUI
             var _printHelper = new PrintHelper(PrintCanvas);
             var printHelperOptions = new PrintHelperOptions();
             printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Orientation);
             printHelperOptions.Orientation = PrintOrientation.Portrait;
 
-            await _printHelper.ShowPrintUIAsync("printing InkPen", printHelperOptions, true);
+            await _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, true);
+        }
+
+
+
+
+        // Background rectangles to indicate where the print area is
+        private void InitializePrintSiteBackground()
+        {
+            for (int i = 0; i < AMOUNT_INITIAL_RECTANGLES; i++)
+            {
+                CreateNewPrintSiteBackground();
+            }
+        }
+
+        private void CreateNewPrintSiteBackground()
+        {
+            Rectangle rectangle = new Rectangle();
+            rectangle.Width = PRINT_RECTANGLE_WIDTH;
+            rectangle.Height = PRINT_RECTANGLE_HEIGHT;
+            rectangle.Margin = new Thickness(0, PRINT_RECTANGLE_HEIGHT * rectangleCounter, 0, 0);
+            rectangle.Stroke = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
+            rectangle.VerticalAlignment = VerticalAlignment.Top;
+            rectangle.HorizontalAlignment = HorizontalAlignment.Left;
+
+            printBackgrounds.Children.Add(rectangle);
+            rectangleCounter++;
+        }
+
+        private void TogglePrintSiteBackgrounds(object sender, RoutedEventArgs e)
+        {
+            if (togglePrintBackground.IsChecked == true)
+            {
+                printBackgrounds.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                printBackgrounds.Visibility = Visibility.Collapsed;
+            }
         }
     }
-
-
 }
