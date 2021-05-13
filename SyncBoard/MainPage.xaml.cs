@@ -46,9 +46,14 @@ namespace SyncBoard
         private String roomCode = "";
 
         private static int PAGE_HEIGHT = 1123, PAGE_WIDTH = 794,
+
             PRINT_RECTANGLE_WIDTH = 794,
             PRINT_RECTANGLE_HEIGHT = 1123,
-            AMOUNT_INITIAL_RECTANGLES = 2;
+            AMOUNT_INITIAL_RECTANGLES = 2,
+            
+            BACKGROUND_DENSITY_DELTA = 20,
+            
+            BORDER_EXPANSION = 2000;
         private int rectangleCounter = 0;
 
         public MainPage()
@@ -79,6 +84,7 @@ namespace SyncBoard
 
             // Init background:
             InitializePrintSiteBackground();
+            CreateBackground();
 
             // Network and sync:
             InitSocket();
@@ -413,32 +419,40 @@ namespace SyncBoard
         {
             if (bottom)
             {
-                outputGrid.Height += 1200;
-                inkCanvas.Height += 1200;
+                outputGrid.Height += BORDER_EXPANSION;
+                inkCanvas.Height += BORDER_EXPANSION;
             } else
             {
-                outputGrid.Width += 1200;
-                inkCanvas.Width += 1200;
+                outputGrid.Width += BORDER_EXPANSION;
+                inkCanvas.Width += BORDER_EXPANSION;
             }
 
             if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
             {
-                CreateNewPrintSiteBackground();
+                for (int i = 0; i <= ((inkCanvas.Height - rectangleCounter * PRINT_RECTANGLE_HEIGHT) / BORDER_EXPANSION) + 1; i++)
+                {
+                    CreateNewPrintSiteBackground();
+                }
             }
+            CreateBackground();
         }
 
         private void expandBoard(float offset)
         {
-            outputGrid.Height = offset + 1200;
-            inkCanvas.Height = offset + 1200;
+            outputGrid.Height = offset + BORDER_EXPANSION;
+            inkCanvas.Height = offset + BORDER_EXPANSION;
 
-            outputGrid.Width = offset + 1200;
-            inkCanvas.Width = offset + 1200;
+            outputGrid.Width = offset + BORDER_EXPANSION;
+            inkCanvas.Width = offset + BORDER_EXPANSION;
 
             if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
             {
-                CreateNewPrintSiteBackground();
+                for (int i = 0; i <= ((inkCanvas.Height - rectangleCounter * PRINT_RECTANGLE_HEIGHT) / BORDER_EXPANSION) + 1; i++)
+                {
+                    CreateNewPrintSiteBackground();
+                }
             }
+            CreateBackground();
         }
 
         private void SetOfflineMode(bool set)
@@ -714,6 +728,7 @@ namespace SyncBoard
             rectangle.Width = PRINT_RECTANGLE_WIDTH;
             rectangle.Height = PRINT_RECTANGLE_HEIGHT;
             rectangle.Margin = new Thickness(0, PRINT_RECTANGLE_HEIGHT * rectangleCounter, 0, 0);
+            rectangle.Fill = new SolidColorBrush(Color.FromArgb(5, 255, 255, 255));
             rectangle.Stroke = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
             rectangle.VerticalAlignment = VerticalAlignment.Top;
             rectangle.HorizontalAlignment = HorizontalAlignment.Left;
@@ -731,6 +746,52 @@ namespace SyncBoard
             else
             {
                 printBackgrounds.Visibility = Visibility.Collapsed;
+            }
+        }
+
+
+        // Background lines
+        private void CreateBackground()
+        {
+            // Horizontal lines
+            for (int i = (int)Math.Max(inkCanvas.Height - BORDER_EXPANSION, 0); i <= inkCanvas.Height; i += BACKGROUND_DENSITY_DELTA)
+            {
+                Line line = new Line();
+                line.X1 = (int)Math.Max(inkCanvas.Width - BORDER_EXPANSION, 0);
+                line.X2 = inkCanvas.Width;
+                line.Y1 = i;
+                line.Y2 = i;
+
+                line.Stroke = new SolidColorBrush(Color.FromArgb(50, 21, 21, 21));
+                line.StrokeThickness = 1.0;
+                background.Children.Add(line);
+            }
+
+            // Vertical lines
+            for (int i = (int)Math.Max(inkCanvas.Width - BORDER_EXPANSION, 0); i <= inkCanvas.Width; i += BACKGROUND_DENSITY_DELTA)
+            {
+                Line line = new Line();
+                line.X1 = i;
+                line.X2 = i;
+                line.Y1 = (int)Math.Max(inkCanvas.Height - BORDER_EXPANSION, 0);
+                line.Y2 = inkCanvas.Height;
+
+                line.Stroke = new SolidColorBrush(Color.FromArgb(50, 21, 21, 21));
+                line.StrokeThickness = 1.0;
+                background.Children.Add(line);
+             }
+        }
+
+        private void ToggleBackgroundLines(object sender, RoutedEventArgs e)
+        {
+            if (backgroundToggle.IsChecked == true)
+            {
+                background.Visibility = Visibility.Visible;
+                CreateBackground();
+            }
+            else
+            {
+                background.Visibility = Visibility.Collapsed;
             }
         }
     }
