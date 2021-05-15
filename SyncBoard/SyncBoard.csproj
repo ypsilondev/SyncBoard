@@ -128,6 +128,9 @@
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
+    <Compile Include="PdfImport.cs" />
+    <Compile Include="PrintUtil.cs" />
+    <Compile Include="StrokeUtil.cs" />
     <Compile Include="MainPage.xaml.cs">
       <DependentUpon>MainPage.xaml</DependentUpon>
     </Compile>

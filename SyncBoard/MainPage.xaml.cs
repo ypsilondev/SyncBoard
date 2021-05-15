@@ -33,15 +33,15 @@ namespace SyncBoard
     {
         private static int EXPAND_MARGIN = 600;
 
-        private Dictionary<Guid, InkStroke> syncedStrokes = new Dictionary<Guid, InkStroke>();
-        private Dictionary<InkStroke, Guid> reverseStrokes = new Dictionary<InkStroke, Guid>();
+        public Dictionary<Guid, InkStroke> syncedStrokes = new Dictionary<Guid, InkStroke>();
+        public Dictionary<InkStroke, Guid> reverseStrokes = new Dictionary<InkStroke, Guid>();
 
         private SocketIO socket;
         private Boolean offlineMode = false;
 
         private String roomCode = "";
 
-        private static int PAGE_HEIGHT = 1123, PAGE_WIDTH = 794,
+        public static int PAGE_HEIGHT = 1123, PAGE_WIDTH = 794,
 
             PRINT_RECTANGLE_WIDTH = 794,
             PRINT_RECTANGLE_HEIGHT = 1123,
@@ -53,13 +53,15 @@ namespace SyncBoard
 
             PDF_IMPORT_ZOOM = 1;
 
-        private static double PAGE_SITE_RATIO = (double)PRINT_RECTANGLE_HEIGHT / PRINT_RECTANGLE_WIDTH;
+        public static double PAGE_SITE_RATIO = (double)PRINT_RECTANGLE_HEIGHT / PRINT_RECTANGLE_WIDTH;
 
-        private uint rectangleCounter = 0, pdfSiteCounter = 0;
+        public uint rectangleCounter = 0, pdfSiteCounter = 0;
+        internal static MainPage Instance;
 
         public MainPage()
         {
             this.InitializeComponent();
+            MainPage.Instance = this;
 
             ApplicationView.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.FullScreen;
 
@@ -106,7 +108,7 @@ namespace SyncBoard
 
         private void InkPresenter_Drawed(InkPresenter presenter, InkStrokesCollectedEventArgs args)
         {
-            DrawStrokes(args.Strokes.ToList());
+            DrawStrokesFromList(args.Strokes.ToList());
         }
 
         private async void InitSocket()
@@ -159,7 +161,7 @@ namespace SyncBoard
                 foreach (var strokePointArray in updateStrokes)
                 {
                     JObject stroke = (JObject)strokePointArray;
-                    InkStroke c = ParseFromJSON(stroke);
+                    InkStroke c = StrokeUtil.ParseFromJSON(stroke);
 
                     syncedStrokes.Add(Guid.Parse(stroke.Value<String>("guid")), c);
                     reverseStrokes.Add(c, Guid.Parse(stroke.Value<String>("guid")));
@@ -279,7 +281,7 @@ namespace SyncBoard
 
             toSync.ForEach(syncStroke =>
             {
-                json.Add(CreateJSONStrokeFrom(syncStroke));
+                json.Add(StrokeUtil.CreateJSONStrokeFrom(syncStroke));
             });
 
             socket.EmitAsync(channel, json);
@@ -295,32 +297,19 @@ namespace SyncBoard
             socket.EmitAsync("erase", erasedIds);
         }
 
-        private void expandBoard(bool bottom)
+        public void expandBoard(bool bottom)
         {
             if (bottom)
             {
-                //outputGrid.Height += BORDER_EXPANSION;
-                //inkCanvas.Height += BORDER_EXPANSION;
                 expandBoard(0, BORDER_EXPANSION);
             }
             else
             {
                 expandBoard(BORDER_EXPANSION, 0);
-                //outputGrid.Width += BORDER_EXPANSION;
-                //inkCanvas.Width += BORDER_EXPANSION;
             }
-
-            /*if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
-            {
-                for (int i = 0; i <= ((inkCanvas.Height - rectangleCounter * PRINT_RECTANGLE_HEIGHT) / BORDER_EXPANSION) + 1; i++)
-                {
-                    CreateNewPrintSiteBackground();
-                }
-            }
-            CreateBackground();*/
         }
 
-        private void expandBoard(int x, int y)
+        public void expandBoard(int x, int y)
         {
             outputGrid.Height += y;
             inkCanvas.Height += y;
@@ -333,17 +322,10 @@ namespace SyncBoard
                 CreateNewPrintSiteBackground();
             }
 
-            /*if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
-            {
-                for (int i = 0; i <= ((inkCanvas.Height - rectangleCounter * PRINT_RECTANGLE_HEIGHT) / BORDER_EXPANSION) + 1; i++)
-                {
-                    CreateNewPrintSiteBackground();
-                }
-            }*/
             CreateBackground();
         }
 
-        private void expandBoard(float offset)
+        public void expandBoard(float offset)
         {
             outputGrid.Height = offset + BORDER_EXPANSION;
             inkCanvas.Height = offset + BORDER_EXPANSION;
@@ -531,152 +513,15 @@ namespace SyncBoard
             fullscreenIcon.IsChecked = ApplicationView.GetForCurrentView().IsFullScreenMode;
         }
 
-        private Polyline CreatePolyLineFromStroke(InkStroke stroke)
-        {
-            var polyLine = new Polyline();
-            polyLine.Stroke = new SolidColorBrush(stroke.DrawingAttributes.Color);
-            if (stroke.DrawingAttributes.Kind.Equals(InkDrawingAttributesKind.Pencil))
-            {
-                polyLine.StrokeDashArray = new DoubleCollection();
-                polyLine.StrokeDashArray.Add(1);
-                polyLine.StrokeDashArray.Add(0.3);
-            }
-            if (stroke.DrawingAttributes.DrawAsHighlighter)
-            {
-                polyLine.Opacity = 0.5;
-            }
-            polyLine.StrokeThickness = stroke.DrawingAttributes.Size.Height;
-            var points = new PointCollection();
-            foreach (var point in stroke.GetInkPoints())
-            {
-                points.Add(point.Position);
-            }
-            polyLine.Points = points;
+        
 
-            return polyLine;
-        }
-
-        private Polyline TranslatePolyLineToPage(Polyline polyLine, int page)
-        {
-            polyLine.Translation = new Vector3(0, -PAGE_HEIGHT * page, 0);
-            return polyLine;
-        }
+        
 
         // Print PDF
         private async void Printer_Click(object sender, RoutedEventArgs e)
         {
-            // Calculate amount of required pages
-            int pageCount = (int)inkCanvas.ActualHeight / PAGE_HEIGHT + 1;
-
-            // Clear the print-canvas
-            PrintCanvas.Children.Clear();
-
-            // Setup the required pages
-            List<Panel> pagePanels = new List<Panel>();
-            for (int i = 0; i < pageCount; i++)
-            {
-                Panel panel = new ItemsStackPanel();
-                panel.Height = PRINT_RECTANGLE_HEIGHT;
-                panel.Width = PRINT_RECTANGLE_WIDTH;
-                panel.Margin = new Thickness(0, 0, 0, 0);
-                pagePanels.Add(panel);
-            }
-
-            // Paint background PFDs
-            foreach (Viewbox pdfSite in imports.Children)
-            {
-                int page = (int)(pdfSite.Translation.Y / PAGE_HEIGHT);
-                int pageOffset = 0;
-
-
-
-                while (pdfSite.Translation.Y + pdfSite.Height >= PAGE_HEIGHT * (page + pageOffset))
-                {
-                    System.Diagnostics.Debug.WriteLine(pdfSite.Translation.Y + pdfSite.Height + "_" + PAGE_HEIGHT * (page + pageOffset));
-                    Image img = (Image)pdfSite.Child;
-                    BitmapImage img2 = (BitmapImage)img.Source;
-                    /*Viewbox v = new Viewbox()
-                    {
-                        Child = new Image()
-                        {
-                            Source = img.Source,
-                            Margin = new Thickness(0, 0, 0, 0),
-
-                            MaxWidth = PRINT_RECTANGLE_WIDTH,
-                            MaxHeight = PRINT_RECTANGLE_HEIGHT
-                        },
-                        VerticalAlignment = VerticalAlignment.Center,
-                        HorizontalAlignment = HorizontalAlignment.Center
-                    };*/
-
-
-
-                    Viewbox v = CreateBackgroundImageViewbox(img2, 0);
-
-                    //v.VerticalAlignment = VerticalAlignment.Center;
-                    //v.HorizontalAlignment = HorizontalAlignment.Center;
-
-                    //v.Width = PRINT_RECTANGLE_WIDTH;
-                    //v.Height = PRINT_RECTANGLE_HEIGHT;
-                    //v.Margin = new Thickness(0,0,0,0);
-                    //v.Translation = new Vector3((int)(PRINT_RECTANGLE_WIDTH - v.Width)/2, (int)(PRINT_RECTANGLE_HEIGHT - v.Height) / 2, 0);
-
-                    pagePanels[page + pageOffset].Children.Add(v);
-                    pageOffset++;
-                }
-            }
-
-            // Paint the strokes to the pages          
-            foreach (var stroke in inkCanvas.InkPresenter.StrokeContainer.GetStrokes())
-            {
-                int page = (int)(stroke.BoundingRect.Top / PAGE_HEIGHT);
-                int pageOffset = 0;
-
-                while (stroke.BoundingRect.Bottom > PAGE_HEIGHT * (page + pageOffset))
-                {
-                    var polyLine = this.CreatePolyLineFromStroke(stroke);
-                    //polyLine2.Translation = new Vector3(0, -PAGE_HEIGHT * (page + 1), 0);
-                    this.TranslatePolyLineToPage(polyLine, page + pageOffset);
-                    pagePanels[page + pageOffset].Children.Add(polyLine);
-                    pageOffset++;
-                }
-            }
-
-            // Add all pages to the output (except blanks)
-            for (int i = 0; i < pageCount; i++)
-            {
-                if (pagePanels[i].Children.Count > 0)
-                {
-                    PrintCanvas.Children.Add(pagePanels[i]);
-                }
-            }
-
-            // Open print-GUI
-            try
-            {
-                var _printHelper = new PrintHelper(PrintCanvas);
-                var printHelperOptions = new PrintHelperOptions();
-                printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Orientation);
-                printHelperOptions.Orientation = PrintOrientation.Portrait;
-                printHelperOptions.PrintQuality = PrintQuality.High;
-
-                _printHelper.OnPrintSucceeded += PrintSucceded;
-
-                await _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, true);
-            }
-            catch (Exception ignored)
-            {
-
-            }
+            PrintUtil.PrintCanvas(inkCanvas, imports, PrintCanvas);
         }
-
-        private void PrintSucceded()
-        {
-            System.Diagnostics.Debug.WriteLine("PRINT DONE");
-            this.DisplayMessage("PRINT DONE!");
-        }
-
-
 
         // Background rectangles to indicate where the print area is
         private void InitializePrintSiteBackground()
@@ -781,86 +626,13 @@ namespace SyncBoard
                 Windows.Storage.StorageFile f = await openPicker.PickSingleFileAsync();
                 PdfDocument doc = await PdfDocument.LoadFromFileAsync(f);
 
-                Load(doc);
+                new PdfImport(doc, imports, this).Load();
+
             }
             catch (Exception ignored)
             {
 
             }
-        }
-
-        private async void Load(PdfDocument pdfDoc)
-        {
-            this.expandBoard(0, (int)(pdfDoc.PageCount + 1) * PRINT_RECTANGLE_HEIGHT);
-
-            for (uint i = 0; i < pdfDoc.PageCount; i++)
-            {
-                /*BitmapImage image = new BitmapImage();
-
-                var page = pdfDoc.GetPage(i);
-
-
-                using (InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream())
-                {
-                    await page.RenderToStreamAsync(stream, new PdfPageRenderOptions() { DestinationHeight = (uint)PRINT_RECTANGLE_HEIGHT*2 });
-                    await image.SetSourceAsync(stream);
-                }
-                Viewbox site = CreateBackgroundImageViewbox(image, i + pdfSiteCounter);
-                imports.Children.Add(site);*/
-                RenderImage(pdfDoc, i, (uint)(i + pdfSiteCounter));
-            }
-
-            pdfSiteCounter += (uint)pdfDoc.PageCount;
-        }
-
-        private async void RenderImage(PdfDocument pdfDoc, uint i, uint pageNr)
-        {
-            BitmapImage image = new BitmapImage();
-
-            var page = pdfDoc.GetPage(i);
-
-            using (InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream())
-            {
-                await page.RenderToStreamAsync(stream, new PdfPageRenderOptions() { DestinationHeight = (uint)(PRINT_RECTANGLE_HEIGHT * PDF_IMPORT_ZOOM) });
-                await image.SetSourceAsync(stream);
-            }
-            Viewbox site = CreateBackgroundImageViewbox(image, pageNr);
-            imports.Children.Add(site);
-        }
-
-        private Viewbox CreateBackgroundImageViewbox(BitmapImage image, uint page)
-        {
-            // FIXME weird issue when mixing Hoch und Querformat
-            double imageSiteRatio = (double)image.PixelHeight / image.PixelWidth;
-
-            int imgRenderWidth;
-            int imgRenderHeight;
-
-            if (imageSiteRatio <= PAGE_SITE_RATIO)
-            {
-                imgRenderWidth = PRINT_RECTANGLE_WIDTH;
-                imgRenderHeight = (int)(imageSiteRatio * PRINT_RECTANGLE_WIDTH);
-            }
-            else
-            {
-                imgRenderWidth = (int)(imageSiteRatio * PRINT_RECTANGLE_HEIGHT);
-                imgRenderHeight = PRINT_RECTANGLE_HEIGHT;
-            }
-
-            Viewbox site = new Viewbox()
-            {
-                Child = new Image()
-                {
-                    Source = image,
-                    Width = imgRenderWidth,
-                    Height = imgRenderHeight
-                },
-                Width = imgRenderWidth,
-                Height = imgRenderHeight
-            };
-
-            site.Translation = new Vector3((int)(PRINT_RECTANGLE_WIDTH - imgRenderWidth) / 2, page * PRINT_RECTANGLE_HEIGHT + (int)(PRINT_RECTANGLE_HEIGHT - imgRenderHeight) / 2, 0);
-            return site;
         }
 
         // Create JSON export
@@ -870,7 +642,7 @@ namespace SyncBoard
 
             foreach (Guid key in syncedStrokes.Keys)
             {
-                board.Add(CreateJSONStrokeFrom(syncedStrokes.GetValueOrDefault(key)));
+                board.Add(StrokeUtil.CreateJSONStrokeFrom(syncedStrokes.GetValueOrDefault(key)));
             }
 
             try
@@ -895,47 +667,6 @@ namespace SyncBoard
             }
         }
 
-        private JObject CreateJSONStrokeFrom(InkStroke syncStroke)
-        {
-            JObject ö = new JObject();
-
-            JObject color = new JObject();
-            color.Add("A", syncStroke.DrawingAttributes.Color.A);
-            color.Add("R", syncStroke.DrawingAttributes.Color.R);
-            color.Add("G", syncStroke.DrawingAttributes.Color.G);
-            color.Add("B", syncStroke.DrawingAttributes.Color.B);
-
-            ö.Add("color", color);
-            ö.Add("guid", reverseStrokes.GetValueOrDefault(syncStroke));
-
-            // Send the tool-size
-            JObject size = new JObject();
-            size.Add("w", syncStroke.DrawingAttributes.Size.Width);
-            size.Add("h", syncStroke.DrawingAttributes.Size.Height);
-
-            JObject toolInfo = new JObject();
-            toolInfo.Add("size", size);
-            toolInfo.Add("marker", syncStroke.DrawingAttributes.DrawAsHighlighter);
-            toolInfo.Add("pencil", syncStroke.DrawingAttributes.Kind.Equals(InkDrawingAttributesKind.Pencil));
-
-            ö.Add("tool", toolInfo);
-
-            JArray oneStrokePoints = new JArray();
-            foreach (var strokePoint in syncStroke.GetInkPoints())
-            {
-                JObject o = new JObject();
-                o.Add("x", strokePoint.Position.X);
-                o.Add("y", strokePoint.Position.Y);
-                o.Add("p", strokePoint.Pressure);
-
-                oneStrokePoints.Add(o);
-            }
-
-            ö.Add("points", oneStrokePoints);
-
-            return ö;
-        }
-
         // Load from JSON file
         private async void LoadJSON(object sender, RoutedEventArgs e)
         {
@@ -955,7 +686,7 @@ namespace SyncBoard
             List<InkStroke> syncingStrokes = new List<InkStroke>();
             foreach (JObject obj in board)
             {
-                InkStroke c = ParseFromJSON(obj);
+                InkStroke c = StrokeUtil.ParseFromJSON(obj);
 
                 _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                     RunAsync(CoreDispatcherPriority.Low, () =>
@@ -966,68 +697,23 @@ namespace SyncBoard
                 syncingStrokes.Add(c);
             }
 
-            DrawStrokes(syncingStrokes);
+            DrawStrokesFromList(syncingStrokes);
         }
 
-        private InkStroke ParseFromJSON(JObject stroke)
+        public void TestForBoardExpansion(float x, float y)
         {
-            List<InkPoint> inkPoints = new List<InkPoint>();
-
-            foreach (var point in stroke.Value<JArray>("points"))
-            {
-                JObject o = (JObject)point;
-                Point p = new Point(o.Value<float>("x"), o.Value<float>("y"));
-                InkPoint ip = new InkPoint(p, o.Value<float>("p"));
-                inkPoints.Add(ip);
-
-                _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                         RunAsync(CoreDispatcherPriority.Low, () =>
                         {
-                            if (o.Value<float>("y") >= inkCanvas.Height - EXPAND_MARGIN)
+                            if (y >= inkCanvas.Height - EXPAND_MARGIN)
                             {
-                                expandBoard(o.Value<float>("y"));
+                                expandBoard(y);
                             }
-                            else if (o.Value<float>("x") >= inkCanvas.Width - EXPAND_MARGIN)
+                            else if (x >= inkCanvas.Width - EXPAND_MARGIN)
                             {
-                                expandBoard(o.Value<float>("x"));
+                                expandBoard(x);
                             }
                         });
-            }
-
-            InkStrokeBuilder b = new InkStrokeBuilder();
-            InkDrawingAttributes da = new InkDrawingAttributes();
-
-            // Pressure
-            JObject toolInfo = stroke.Value<JObject>("tool");
-            if (toolInfo != null)
-            {
-                if (toolInfo.Value<Boolean>("pencil"))
-                {
-                    da = InkDrawingAttributes.CreateForPencil();
-                }
-                else
-                {
-                    da.DrawAsHighlighter = toolInfo.Value<Boolean>("marker");
-                }
-
-                da.Size = new Size((double)toolInfo.Value<JObject>("size").GetValue("w"),
-                            (double)toolInfo.Value<JObject>("size").GetValue("h"));
-            }
-
-            // Color
-            da.Color = Windows.UI.ColorHelper.FromArgb(
-                (byte)stroke.Value<JObject>("color").GetValue("A"),
-                (byte)stroke.Value<JObject>("color").GetValue("R"),
-                (byte)stroke.Value<JObject>("color").GetValue("G"),
-                (byte)stroke.Value<JObject>("color").GetValue("B")
-            );
-            da.IgnorePressure = false;
-            da.FitToCurve = true;
-
-            b.SetDefaultDrawingAttributes(da);
-            InkStroke c = b.CreateStrokeFromInkPoints(inkPoints, Matrix3x2.Identity);
-
-            return c;
         }
 
         private void ClearRoom()
@@ -1051,7 +737,7 @@ namespace SyncBoard
             socket.EmitAsync("cmd", emit.ToString());
         }
 
-        private void DrawStrokes(List<InkStroke> strokes)
+        private void DrawStrokesFromList(List<InkStroke> strokes)
         {
             _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                    RunAsync(CoreDispatcherPriority.Normal, () =>
@@ -1083,13 +769,10 @@ namespace SyncBoard
                    });
         }
 
-        private async void DisplayMessage(String msg)
+        public async void DisplayMessage(String msg)
         {
-
             var messageDialog = new MessageDialog(msg);
-
-            messageDialog.Commands.Add(new UICommand(
-                "Close"));
+            messageDialog.Commands.Add(new UICommand("Close"));
 
             // Set the command that will be invoked by default
             messageDialog.DefaultCommandIndex = 0;
