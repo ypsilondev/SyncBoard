@@ -63,6 +63,8 @@ namespace SyncBoard
             // Clear the print-canvas
             PrintCanvas.Children.Clear();
 
+            System.Diagnostics.Debug.WriteLine("Creating page panels");
+
             // Setup the required pages
             List<Panel> pagePanels = new List<Panel>();
             for (int i = 0; i < pageCount; i++)
@@ -73,28 +75,25 @@ namespace SyncBoard
                 panel.Margin = new Thickness(0, 0, 0, 0);
                 pagePanels.Add(panel);
             }
-
+            System.Diagnostics.Debug.WriteLine("Creating background pdf");
             // Paint background PFDs
             foreach (Viewbox pdfSite in imports.Children)
             {
                 int page = (int)(pdfSite.Translation.Y / MainPage.PAGE_HEIGHT);
                 int pageOffset = 0;
 
-
-
                 while (pdfSite.Translation.Y + pdfSite.Height >= MainPage.PAGE_HEIGHT * (page + pageOffset))
                 {
-                    System.Diagnostics.Debug.WriteLine(pdfSite.Translation.Y + pdfSite.Height + "_" + MainPage.PAGE_HEIGHT * (page + pageOffset));
-                    Image img = (Image)pdfSite.Child;
-                    BitmapImage img2 = (BitmapImage)img.Source;
-
+                    // System.Diagnostics.Debug.WriteLine(pdfSite.Translation.Y + pdfSite.Height + "_" + MainPage.PAGE_HEIGHT * (page + pageOffset));
+                    BitmapImage img2 = (BitmapImage)((Image)pdfSite.Child).Source;
                     Viewbox v = PdfImport.CreateBackgroundImageViewbox(img2, 0);
-
+                    img2 = null;
                     pagePanels[page + pageOffset].Children.Add(v);
                     pageOffset++;
                 }
             }
 
+            System.Diagnostics.Debug.WriteLine("Creating strokes");
             // Paint the strokes to the pages          
             foreach (var stroke in inkCanvas.InkPresenter.StrokeContainer.GetStrokes())
             {
@@ -111,7 +110,7 @@ namespace SyncBoard
                 }
             }
 
-
+            System.Diagnostics.Debug.WriteLine("Adding panels to output");
             // Add all pages to the output (except blanks)
             for (int i = 0; i < pageCount; i++)
             {
@@ -120,10 +119,12 @@ namespace SyncBoard
                     PrintCanvas.Children.Add(pagePanels[i]);
                 }
             }
+            pagePanels = null;
 
             // Open print-GUI
             try
             {
+                System.Diagnostics.Debug.WriteLine("Setup printhelper");
                 var _printHelper = new PrintHelper(PrintCanvas);
                 var printHelperOptions = new PrintHelperOptions();
                 printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Orientation);
@@ -133,8 +134,8 @@ namespace SyncBoard
 
                 _printHelper.OnPrintSucceeded += PrintSucceded;
 
-
-                await _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, true);
+                System.Diagnostics.Debug.WriteLine("Open Print-dialog");
+                _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, true);
             }
             catch (Exception ignored)
             {

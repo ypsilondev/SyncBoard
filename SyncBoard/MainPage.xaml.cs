@@ -51,7 +51,7 @@ namespace SyncBoard
 
             BORDER_EXPANSION = 1128,
 
-            PDF_IMPORT_ZOOM = 1;
+            PDF_IMPORT_ZOOM = 4;
 
         public static double PAGE_SITE_RATIO = (double)PRINT_RECTANGLE_HEIGHT / PRINT_RECTANGLE_WIDTH;
 
@@ -156,15 +156,15 @@ namespace SyncBoard
         {
             socket.On("sync", (data) =>
             {
-                JArray updateStrokes = data.GetValue<JArray>();
-
-                foreach (var strokePointArray in updateStrokes)
+                JObject updateStrokes = data.GetValue<JObject>();
+                
+                foreach(var strokeArray in updateStrokes)
                 {
-                    JObject stroke = (JObject)strokePointArray;
+                    JObject stroke = (JObject)strokeArray.Value;
                     InkStroke c = StrokeUtil.ParseFromJSON(stroke);
 
-                    syncedStrokes.Add(Guid.Parse(stroke.Value<String>("guid")), c);
-                    reverseStrokes.Add(c, Guid.Parse(stroke.Value<String>("guid")));
+                    syncedStrokes.Add(Guid.Parse(strokeArray.Key), c);
+                    reverseStrokes.Add(c, Guid.Parse(strokeArray.Key));
 
                     _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                         RunAsync(CoreDispatcherPriority.Low, () =>
@@ -277,11 +277,12 @@ namespace SyncBoard
         private void SyncData(List<InkStroke> toSync, String channel)
         {
             if (toSync.Count == 0) return;
-            JArray json = new JArray();
+            //JArray json = new JArray();
+            JObject json = new JObject();
 
             toSync.ForEach(syncStroke =>
             {
-                json.Add(StrokeUtil.CreateJSONStrokeFrom(syncStroke));
+                json.Add(reverseStrokes.GetValueOrDefault(syncStroke).ToString(), StrokeUtil.CreateJSONStrokeFrom(syncStroke));
             });
 
             socket.EmitAsync(channel, json);
@@ -384,6 +385,7 @@ namespace SyncBoard
         {
             if (!offlineMode && socket.Connected)
             {
+                this.ClearRoom();
                 socket.EmitAsync("cmd", "{\"action\": \"join\", \"payload\": \"" + roomCodeBox.Text + "\"}");
             }
         }
@@ -638,11 +640,11 @@ namespace SyncBoard
         // Create JSON export
         private async void CreateJSONExport(object sender, RoutedEventArgs e)
         {
-            JArray board = new JArray();
+            JObject board = new JObject();
 
             foreach (Guid key in syncedStrokes.Keys)
             {
-                board.Add(StrokeUtil.CreateJSONStrokeFrom(syncedStrokes.GetValueOrDefault(key)));
+                board.Add(key.ToString(), StrokeUtil.CreateJSONStrokeFrom(syncedStrokes.GetValueOrDefault(key)));
             }
 
             try
