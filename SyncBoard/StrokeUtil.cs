@@ -29,6 +29,7 @@ namespace SyncBoard
                 MainPage.Instance.TestForBoardExpansion(o.Value<float>("x"), o.Value<float>("y"));
             }
 
+
             InkStrokeBuilder b = new InkStrokeBuilder();
             InkDrawingAttributes da = new InkDrawingAttributes();
 

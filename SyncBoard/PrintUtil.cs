@@ -53,17 +53,17 @@ namespace SyncBoard
         }
 
 
-        public async static void PrintCanvas(InkCanvas inkCanvas, Grid imports, Canvas PrintCanvas)
+        public async static void PrintCanvas(InkCanvas inkCanvas, Grid imports, Canvas printCanvas)
         {
+            var _printHelper = new PrintHelper(printCanvas);
             // Canvas PrintCanvas = new Canvas();
 
             // Calculate amount of required pages
             int pageCount = (int)inkCanvas.ActualHeight / MainPage.PAGE_HEIGHT + 1;
 
             // Clear the print-canvas
-            PrintCanvas.Children.Clear();
+            printCanvas.Children.Clear();
 
-            System.Diagnostics.Debug.WriteLine("Creating page panels");
 
             // Setup the required pages
             List<Panel> pagePanels = new List<Panel>();
@@ -75,7 +75,6 @@ namespace SyncBoard
                 panel.Margin = new Thickness(0, 0, 0, 0);
                 pagePanels.Add(panel);
             }
-            System.Diagnostics.Debug.WriteLine("Creating background pdf");
             // Paint background PFDs
             foreach (Viewbox pdfSite in imports.Children)
             {
@@ -84,16 +83,13 @@ namespace SyncBoard
 
                 while (pdfSite.Translation.Y + pdfSite.Height >= MainPage.PAGE_HEIGHT * (page + pageOffset))
                 {
-                    // System.Diagnostics.Debug.WriteLine(pdfSite.Translation.Y + pdfSite.Height + "_" + MainPage.PAGE_HEIGHT * (page + pageOffset));
                     BitmapImage img2 = (BitmapImage)((Image)pdfSite.Child).Source;
                     Viewbox v = PdfImport.CreateBackgroundImageViewbox(img2, 0);
-                    img2 = null;
                     pagePanels[page + pageOffset].Children.Add(v);
                     pageOffset++;
                 }
             }
 
-            System.Diagnostics.Debug.WriteLine("Creating strokes");
             // Paint the strokes to the pages          
             foreach (var stroke in inkCanvas.InkPresenter.StrokeContainer.GetStrokes())
             {
@@ -103,39 +99,47 @@ namespace SyncBoard
                 while (stroke.BoundingRect.Bottom > MainPage.PAGE_HEIGHT * (page + pageOffset))
                 {
                     var polyLine = PrintUtil.CreatePolyLineFromStroke(stroke);
-                    //polyLine2.Translation = new Vector3(0, -PAGE_HEIGHT * (page + 1), 0);
                     PrintUtil.TranslatePolyLineToPage(polyLine, page + pageOffset);
                     pagePanels[page + pageOffset].Children.Add(polyLine);
                     pageOffset++;
                 }
             }
 
-            System.Diagnostics.Debug.WriteLine("Adding panels to output");
             // Add all pages to the output (except blanks)
             for (int i = 0; i < pageCount; i++)
             {
                 if (pagePanels[i].Children.Count > 0)
                 {
-                    PrintCanvas.Children.Add(pagePanels[i]);
+                    // PrintCanvas.Children.Add(pagePanels[i]);
+                    _printHelper.AddFrameworkElementToPrint(pagePanels[i]);
                 }
             }
-            pagePanels = null;
+            pagePanels = null; // Remove reference for performance reasons.
 
             // Open print-GUI
             try
             {
-                System.Diagnostics.Debug.WriteLine("Setup printhelper");
-                var _printHelper = new PrintHelper(PrintCanvas);
+                
                 var printHelperOptions = new PrintHelperOptions();
                 printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Orientation);
+                printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.CustomPageRanges);
+                printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Duplex);
+                
+                //PrintTaskOptions options = new PrintTaskOptions();
+                //options.MediaSize = PrintMediaSize.IsoA4;
+                //printHelperOptions.AddDisplayOption();
+
                 printHelperOptions.Orientation = PrintOrientation.Portrait;
                 printHelperOptions.PrintQuality = PrintQuality.High;
+                
+                
 
-
+                // var _printHelper = new PrintHelper(PrintCanvas);
                 _printHelper.OnPrintSucceeded += PrintSucceded;
+                _printHelper.OnPrintFailed += PrintFailed;
 
-                System.Diagnostics.Debug.WriteLine("Open Print-dialog");
-                _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, true);
+                
+                await _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, false);
             }
             catch (Exception ignored)
             {
@@ -148,6 +152,11 @@ namespace SyncBoard
         {
             System.Diagnostics.Debug.WriteLine("PRINT DONE");
             MainPage.Instance.DisplayMessage("PRINT DONE!");
+        }
+
+        private static void PrintFailed()
+        {
+            MainPage.Instance.DisplayMessage("Printing failed. Please try again ¯\\_(ツ)_/¯");
         }
 
 

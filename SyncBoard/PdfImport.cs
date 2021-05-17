@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Numerics;
-using System.Text;
-using System.Threading;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.Data.Pdf;
 using Windows.Graphics.Imaging;
+using Windows.Security.Cryptography;
 using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.UI.Xaml.Controls;
@@ -16,6 +15,8 @@ namespace SyncBoard
 {
     class PdfImport
     {
+
+        public const int PDF_IMPORT_ZOOM = 3;
 
         private MainPage mainPage;
         private PdfDocument pdfDoc;
@@ -49,22 +50,78 @@ namespace SyncBoard
 
             using (InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream())
             {
-                await page.RenderToStreamAsync(stream, new PdfPageRenderOptions() { DestinationHeight = (uint)(MainPage.PRINT_RECTANGLE_HEIGHT * MainPage.PDF_IMPORT_ZOOM) });
+                await page.RenderToStreamAsync(stream, new PdfPageRenderOptions() { DestinationHeight = (uint)(MainPage.PRINT_RECTANGLE_HEIGHT * PDF_IMPORT_ZOOM) });
+                using (InMemoryRandomAccessStream test = new InMemoryRandomAccessStream())
+                {
+                    // Optional image compression for improved network efficiency
+                    //await this.ConvertImageToJpegAsync(stream, test);
+                    // await image.SetSourceAsync(test);
+                    await image.SetSourceAsync(stream);
+                }
+            }
+            /*using (InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream())
+            {
+                await page.RenderToStreamAsync(stream, new PdfPageRenderOptions() { DestinationHeight = (uint)(MainPage.PRINT_RECTANGLE_HEIGHT * PDF_IMPORT_ZOOM) });
                 using (InMemoryRandomAccessStream test = new InMemoryRandomAccessStream())
                 {
                     await this.ConvertImageToJpegAsync(stream, test);
-                    await image.SetSourceAsync(test);
+                    // await image.SetSourceAsync(test);
+                    //if (i == 1)
+                    //{
+                        var writeableBitmap = new WriteableBitmap(image.PixelWidth, image.PixelHeight);
+                        await writeableBitmap.SetSourceAsync(test);
+                        await SaveImageToFile("import_"+i+".jpeg", writeableBitmap);
+                   // }
                 }
-                /*InMemoryRandomAccessStream test = new InMemoryRandomAccessStream();
-                await this.ConvertImageToJpegAsync(stream, test);
-                await image.SetSourceAsync(test);*/
-                //await image.SetSourceAsync(stream);
-
-            }
+            }*/
             Viewbox site = CreateBackgroundImageViewbox(image, pageNr);
             this.imports.Children.Add(site);
+            
+            
         }
 
+        public static async Task<string> SaveImageToFile(string fileName, WriteableBitmap workBmp)
+        {
+            try
+            {
+                var writeStream = new InMemoryRandomAccessStream();
+                var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, writeStream);
+
+                // saving to a straight 32 bpp PNG, the dpiX and dpiY values are irrelevant, but also cannot be zero. 
+                // We will use the default "since-the-beginning-of-time" 96 dpi.
+                encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Straight, (uint)workBmp.PixelWidth, (uint)workBmp.PixelHeight, 96, 96, workBmp.PixelBuffer.ToArray());
+
+                await encoder.FlushAsync();
+
+                writeStream.Seek(0);
+
+                System.Diagnostics.Debug.WriteLine("penner");
+
+                // var dl = await DownloadsFolder.CreateFileAsync(fileName, CreationCollisionOption.GenerateUniqueName);
+                StorageFolder folder = Windows.Storage.ApplicationData.Current.LocalFolder;
+                
+                System.Diagnostics.Debug.WriteLine(folder.Path);
+                var dl = await folder.CreateFileAsync(fileName, Windows.Storage.CreationCollisionOption.ReplaceExisting);
+
+                var imgFileOut = await dl.OpenStreamForWriteAsync();
+
+                var fileProxyStream = writeStream.AsStreamForRead();
+
+                await fileProxyStream.CopyToAsync(imgFileOut);
+                await imgFileOut.FlushAsync();
+
+                fileProxyStream.Dispose();
+                imgFileOut.Dispose();
+
+                var xc = Windows.Storage.AccessCache.StorageApplicationPermissions.FutureAccessList;
+
+                return xc.Add(dl);
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
 
 
         public static Viewbox CreateBackgroundImageViewbox(BitmapImage image, uint page)
@@ -104,45 +161,24 @@ namespace SyncBoard
 
         private async Task<InMemoryRandomAccessStream> ConvertImageToJpegAsync(InMemoryRandomAccessStream imageStream, InMemoryRandomAccessStream output)
         {
-            //you can use WinRTXamlToolkit StorageItemExtensions.GetSizeAsync to get file size (if you already plugged this nuget in)
-            //var sourceFileProperties = await sourceFile.GetBasicPropertiesAsync();
-            //var fileSize = sourceFileProperties.Size;
-            //var imageStream = await sourceFile.OpenReadAsync();
-            //BitmapImage img;
-
-            //var imageWriteableStream = new InMemoryRandomAccessStream();
             var imageWriteableStream = output;
-            //Stopwatch stopwatch = new Stopwatch();
-            //stopwatch.Start();
-            /*using (imageStream)
-            {*/
+            using (imageStream)
+            {
                 var decoder = await BitmapDecoder.CreateAsync(imageStream);
-                var pixelData = await decoder.GetPixelDataAsync();
-                var detachedPixelData = pixelData.DetachPixelData();
-                pixelData = null;
-                //0.85d
-                double jpegImageQuality = 0.2d;
-                //since we're using MvvmCross, we're outputing diagnostic info to MvxTrace, you can use System.Diagnostics.Debug.WriteLine instead
-                //Mvx.TaggedTrace(MvxTraceLevel.Diagnostic, "ImageService", $"Source image size: {fileSize}, trying Q={jpegImageQuality}");
-                //var imageWriteableStream = await outputFile.OpenAsync(FileAccessMode.ReadWrite);
-                
-                ulong jpegImageSize = 0;
-                /*using (imageWriteableStream)
-                {*/
-                    var propertySet = new BitmapPropertySet();
-                    var qualityValue = new BitmapTypedValue(jpegImageQuality, Windows.Foundation.PropertyType.Single);
-                    propertySet.Add("ImageQuality", qualityValue);
-                    var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, imageWriteableStream, propertySet);
-                    //key thing here is to use decoder.OrientedPixelWidth and decoder.OrientedPixelHeight otherwise you will get garbled image on devices on some photos with orientation in metadata
-                    encoder.SetPixelData(decoder.BitmapPixelFormat, decoder.BitmapAlphaMode, decoder.OrientedPixelWidth, decoder.OrientedPixelHeight, decoder.DpiX, decoder.DpiY, detachedPixelData);
-                    await encoder.FlushAsync();
-                    await imageWriteableStream.FlushAsync();
-                    //jpegImageSize = imageWriteableStream.Size;
-                //}
-               // Mvx.TaggedTrace(MvxTraceLevel.Diagnostic, "ImageService", $"Final image size now: {jpegImageSize}");
-            //
-            //stopwatch.Stop();
-           // Mvx.TaggedTrace(MvxTraceLevel.Diagnostic, "ImageService", $"Time spent optimizing image: {stopwatch.Elapsed}");
+                var detachedPixelData = (await decoder.GetPixelDataAsync()).DetachPixelData();
+
+                double jpegImageQuality = 0.05d;
+
+                var propertySet = new BitmapPropertySet();
+                var qualityValue = new BitmapTypedValue(jpegImageQuality, Windows.Foundation.PropertyType.Single);
+                propertySet.Add("ImageQuality", qualityValue);
+                var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.JpegEncoderId, imageWriteableStream, propertySet);
+                //key thing here is to use decoder.OrientedPixelWidth and decoder.OrientedPixelHeight otherwise you will get garbled image on devices on some photos with orientation in metadata
+                encoder.SetPixelData(decoder.BitmapPixelFormat, decoder.BitmapAlphaMode, decoder.OrientedPixelWidth, decoder.OrientedPixelHeight, decoder.DpiX, decoder.DpiY, detachedPixelData);
+                await encoder.FlushAsync();
+                await imageWriteableStream.FlushAsync();
+            }
+            
             return imageWriteableStream;
         }
     }

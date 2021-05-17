@@ -49,9 +49,7 @@ namespace SyncBoard
 
             BACKGROUND_DENSITY_DELTA = 20,
 
-            BORDER_EXPANSION = 1128,
-
-            PDF_IMPORT_ZOOM = 4;
+            BORDER_EXPANSION = 1128;
 
         public static double PAGE_SITE_RATIO = (double)PRINT_RECTANGLE_HEIGHT / PRINT_RECTANGLE_WIDTH;
 
@@ -156,6 +154,26 @@ namespace SyncBoard
         {
             socket.On("sync", (data) =>
             {
+
+                JArray updateStrokes = data.GetValue<JArray>();
+
+                foreach (var strokePointArray in updateStrokes)
+                {
+                    JObject stroke = (JObject)strokePointArray;
+                    InkStroke c = StrokeUtil.ParseFromJSON(stroke);
+
+                    syncedStrokes.Add(Guid.Parse(stroke.Value<String>("guid")), c);
+                    reverseStrokes.Add(c, Guid.Parse(stroke.Value<String>("guid")));
+
+                    _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                        RunAsync(CoreDispatcherPriority.Low, () =>
+                        {
+                            inkCanvas.InkPresenter.StrokeContainer.AddStroke(c);
+                        });
+                }
+
+                // TODO FIXME: this is the code for the new protocol-version of syncboard
+                /*
                 JObject updateStrokes = data.GetValue<JObject>();
                 
                 foreach(var strokeArray in updateStrokes)
@@ -171,7 +189,7 @@ namespace SyncBoard
                         {
                             inkCanvas.InkPresenter.StrokeContainer.AddStroke(c);
                         });
-                }
+                }*/
             });
 
             socket.On("cmd", (data) =>
@@ -698,6 +716,21 @@ namespace SyncBoard
 
                 syncingStrokes.Add(c);
             }
+
+            // TODO FIXME: this is the implementation for the new protocol
+            /*List<InkStroke> syncingStrokes = new List<InkStroke>();
+            foreach (JObject obj in board)
+            {
+                InkStroke c = StrokeUtil.ParseFromJSON(obj);
+
+                _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                    RunAsync(CoreDispatcherPriority.Low, () =>
+                    {
+                        inkCanvas.InkPresenter.StrokeContainer.AddStroke(c);
+                    });
+
+                syncingStrokes.Add(c);
+            }*/
 
             DrawStrokesFromList(syncingStrokes);
         }
