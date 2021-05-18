@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SyncBoard.UserControls;
+using System;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -11,12 +12,10 @@ using Windows.Storage.Streams;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media.Imaging;
 
-namespace SyncBoard
+namespace SyncBoard.Utiles
 {
     class PdfImport
     {
-
-        public const int PDF_IMPORT_ZOOM = 3;
 
         private MainPage mainPage;
         private PdfDocument pdfDoc;
@@ -50,7 +49,7 @@ namespace SyncBoard
 
             using (InMemoryRandomAccessStream stream = new InMemoryRandomAccessStream())
             {
-                await page.RenderToStreamAsync(stream, new PdfPageRenderOptions() { DestinationHeight = (uint)(MainPage.PRINT_RECTANGLE_HEIGHT * PDF_IMPORT_ZOOM) });
+                await page.RenderToStreamAsync(stream, new PdfPageRenderOptions() { DestinationHeight = (uint)(MainPage.PRINT_RECTANGLE_HEIGHT * SettingsPage.PDF_IMPORT_ZOOM) });
                 using (InMemoryRandomAccessStream test = new InMemoryRandomAccessStream())
                 {
                     // Optional image compression for improved network efficiency

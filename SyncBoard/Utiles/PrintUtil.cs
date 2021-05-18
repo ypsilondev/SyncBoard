@@ -15,7 +15,7 @@ using Windows.UI.Xaml.Media;
 using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Shapes;
 
-namespace SyncBoard
+namespace SyncBoard.Utiles
 {
     class PrintUtil
     {
@@ -108,7 +108,7 @@ namespace SyncBoard
             // Add all pages to the output (except blanks)
             for (int i = 0; i < pageCount; i++)
             {
-                if (pagePanels[i].Children.Count > 0)
+                if (pagePanels[i].Children.Count > 0 || pageCount <= 1)
                 {
                     // PrintCanvas.Children.Add(pagePanels[i]);
                     _printHelper.AddFrameworkElementToPrint(pagePanels[i]);

@@ -1,14 +1,13 @@
-﻿using Microsoft.Toolkit.Uwp.Helpers;
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 using SocketIOClient;
+using SyncBoard.UserControls;
+using SyncBoard.Utiles;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Threading;
 using Windows.Data.Pdf;
 using Windows.Foundation;
-using Windows.Graphics.Printing;
 using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.UI;
@@ -19,19 +18,14 @@ using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
-using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Shapes;
-
-// Die Elementvorlage "Leere Seite" wird unter https://go.microsoft.com/fwlink/?LinkId=402352&clcid=0x407 dokumentiert.
 
 namespace SyncBoard
 {
-    /// <summary>
-    /// Eine leere Seite, die eigenständig verwendet oder zu der innerhalb eines Rahmens navigiert werden kann.
-    /// </summary>
     public sealed partial class MainPage : Page
     {
         private static int EXPAND_MARGIN = 600;
+
 
         public Dictionary<Guid, InkStroke> syncedStrokes = new Dictionary<Guid, InkStroke>();
         public Dictionary<InkStroke, Guid> reverseStrokes = new Dictionary<InkStroke, Guid>();
@@ -46,8 +40,6 @@ namespace SyncBoard
             PRINT_RECTANGLE_WIDTH = 794,
             PRINT_RECTANGLE_HEIGHT = 1123,
             AMOUNT_INITIAL_RECTANGLES = 2,
-
-            BACKGROUND_DENSITY_DELTA = 20,
 
             BORDER_EXPANSION = 1128;
 
@@ -85,13 +77,14 @@ namespace SyncBoard
 
 
 
-
             // Init background:
             InitializePrintSiteBackground();
             CreateBackground();
 
             // Network and sync:
             InitSocket();
+
+            
         }
 
         private void InkPresenter_StrokesErased(InkPresenter sender, InkStrokesErasedEventArgs args)
@@ -295,12 +288,13 @@ namespace SyncBoard
         private void SyncData(List<InkStroke> toSync, String channel)
         {
             if (toSync.Count == 0) return;
-            //JArray json = new JArray();
-            JObject json = new JObject();
+            JArray json = new JArray();
+            //JObject json = new JObject();
 
             toSync.ForEach(syncStroke =>
             {
-                json.Add(reverseStrokes.GetValueOrDefault(syncStroke).ToString(), StrokeUtil.CreateJSONStrokeFrom(syncStroke));
+                //json.Add(reverseStrokes.GetValueOrDefault(syncStroke).ToString(), StrokeUtil.CreateJSONStrokeFrom(syncStroke));
+                json.Add(StrokeUtil.CreateJSONStrokeFrom(syncStroke));
             });
 
             socket.EmitAsync(channel, json);
@@ -521,6 +515,11 @@ namespace SyncBoard
         // Enter fullscreen
         private void Button_Click_1(object sender, RoutedEventArgs e)
         {
+            this.ToggleFullscreen();
+        }
+
+        public void ToggleFullscreen()
+        {
             if (ApplicationView.GetForCurrentView().IsFullScreenMode)
             {
                 ApplicationView.GetForCurrentView().ExitFullScreenMode();
@@ -538,7 +537,7 @@ namespace SyncBoard
         
 
         // Print PDF
-        private async void Printer_Click(object sender, RoutedEventArgs e)
+        public async void Printer_Click(object sender, RoutedEventArgs e)
         {
             PrintUtil.PrintCanvas(inkCanvas, imports, PrintCanvas);
         }
@@ -580,16 +579,22 @@ namespace SyncBoard
         }
 
 
+        public void CreateBackground()
+        {
+            CreateBackground(false);
+        }
+
         // Background lines
-        private void CreateBackground()
+        public void CreateBackground(Boolean inital)
         {
             // Horizontal lines
             int start = (int)Math.Max(inkCanvas.Height - BORDER_EXPANSION, 0);
-            if (inkCanvas.Height - BORDER_EXPANSION < BORDER_EXPANSION)
+            if (inkCanvas.Height - BORDER_EXPANSION < BORDER_EXPANSION || inital)
             {
                 start = 0;
+                background.Children.Clear();
             }
-            for (int i = start; i <= inkCanvas.Height; i += BACKGROUND_DENSITY_DELTA)
+            for (int i = start; i <= inkCanvas.Height; i += SettingsPage.BACKGROUND_DENSITY_DELTA)
             {
                 Line line = new Line();
                 line.X1 = 0;
@@ -603,7 +608,7 @@ namespace SyncBoard
             }
 
             // Vertical lines
-            for (int i = 0; i <= Window.Current.Bounds.Width; i += BACKGROUND_DENSITY_DELTA)
+            for (int i = 0; i <= Window.Current.Bounds.Width; i += SettingsPage.BACKGROUND_DENSITY_DELTA)
             {
                 Line line = new Line();
                 line.X1 = i;
@@ -819,5 +824,11 @@ namespace SyncBoard
             await messageDialog.ShowAsync();
 
         }
+
+        public UserControl GetSettingsPage()
+        {
+            return settingsPage;
+        }
+
     }
 }

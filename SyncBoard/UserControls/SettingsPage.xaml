@@ -1,0 +1,36 @@
+﻿<UserControl
+    x:Class="SyncBoard.UserControls.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SyncBoard.UserControls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    d:DesignHeight="550"
+    d:DesignWidth="400">
+
+    <Grid Background="Black">
+
+        <StackPanel Margin="15 25 15 25">
+            <ListView>
+                <TextBlock Text="Einstellungen" TextWrapping="Wrap" FontSize="24" FontWeight="Bold"/>
+                
+                <TextBox HorizontalAlignment="Left" Width="235" Text="yjulian.xyz" TextWrapping="Wrap" VerticalAlignment="Center">
+                    <TextBox.Header>Server</TextBox.Header>
+                    <TextBox.Margin>0 0 0 10</TextBox.Margin>
+                </TextBox>
+
+                <Slider x:Name="pdfQualitySelector" HorizontalAlignment="Left" VerticalAlignment="Center"  Minimum="1" Maximum="4">
+                    <Slider.Header>PDF-Import Qualität</Slider.Header>
+                    <Slider.Margin>0 0 0 10</Slider.Margin>
+                </Slider>
+
+                <Slider x:Name="backgroundDenisitySelector" HorizontalAlignment="Left" VerticalAlignment="Center" IsDirectionReversed="True" Value="20" Minimum="10" Maximum="60" StepFrequency="10">
+                    <Slider.Header>Kästchen-Abstand</Slider.Header>
+                    <Slider.Margin>0 0 0 10</Slider.Margin>
+                </Slider>
+
+            </ListView>
+        </StackPanel>
+    </Grid>
+</UserControl>

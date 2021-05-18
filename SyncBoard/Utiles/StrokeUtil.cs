@@ -10,7 +10,7 @@ using Windows.UI.Core;
 using Windows.UI.Input.Inking;
 using Windows.UI.Xaml.Controls;
 
-namespace SyncBoard
+namespace SyncBoard.Utiles
 {
     class StrokeUtil
     {

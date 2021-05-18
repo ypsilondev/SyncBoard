@@ -1,0 +1,19 @@
+﻿<UserControl
+    x:Class="SyncBoard.UserControls.NavBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:SyncBoard"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    >
+
+    <!--<Grid Background="AliceBlue">-->
+        <NavigationView x:Name="navBar" PaneTitle="Syncboard" IsBackButtonVisible="Collapsed">
+            <NavigationView.MenuItems>
+            <NavigationViewItem Content="Vollbild" Icon="FullScreen" Tag="fullscreen" />
+            <NavigationViewItem Content="Board" Icon="DockBottom" Tag="board" />
+            </NavigationView.MenuItems>
+        </NavigationView>
+    <!--</Grid>-->
+</UserControl>

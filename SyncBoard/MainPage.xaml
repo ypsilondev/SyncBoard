@@ -5,6 +5,7 @@
     xmlns:local="using:SyncBoard"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:uc="using:SyncBoard.UserControls"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
@@ -14,10 +15,36 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <ScrollViewer x:Name="scrollViewer" ZoomMode="Enabled" MinZoomFactor="1"
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="50"></ColumnDefinition>
+            <ColumnDefinition Width="*"></ColumnDefinition>
+        </Grid.ColumnDefinitions>
+
+        <Grid x:Name="contentContainer" Grid.Row="2" Grid.Column="2">
+            <ScrollViewer x:Name="scrollViewer" ZoomMode="Enabled" MinZoomFactor="1"
                       VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" Grid.Row="1" Margin="0,103,0,0"
-                      Width="1500" Height="897" VerticalAlignment="Top">
+                      HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                      Width="1500" Height="897" VerticalAlignment="Top" HorizontalAlignment="Left">
+                <Grid x:Name="outputGrid"
+                  Height="892"
+                  Width="1500">
+                    <Canvas x:Name="PrintCanvas" Opacity="0"/>
+                    <Grid x:Name="background" Visibility="Collapsed"></Grid>
+                    <Grid x:Name="printBackgrounds"></Grid>
+                    <Grid x:Name="imports" VerticalAlignment="Top" HorizontalAlignment="Left"></Grid>
+                    <InkCanvas x:Name="inkCanvas"
+                   Height="1218"
+                   Width="1843" VerticalAlignment="Top" HorizontalAlignment="Left"/>
+                </Grid>
+            </ScrollViewer>
+            
+            <uc:SettingsPage x:Name="settingsPage"  Visibility="Collapsed"/>
+        </Grid>
+        
+        <!--<ScrollViewer x:Name="scrollViewer" ZoomMode="Enabled" MinZoomFactor="1"
+                      VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="1"  Grid.RowSpan="1"
+                      Width="1500" Height="897" VerticalAlignment="Top" HorizontalAlignment="Left">
             <Grid x:Name="outputGrid"
                   Height="892"
                   Width="1500">
@@ -28,54 +55,75 @@
                 <InkCanvas x:Name="inkCanvas"
                    Height="1218"
                    Width="1843" VerticalAlignment="Top" HorizontalAlignment="Left"/>
+
             </Grid>
-        </ScrollViewer>
+        </ScrollViewer>-->
+        <!--<NavigationView x:Name="navBar" PaneTitle="Syncboard" Grid.Row="1" Margin="0 54 0 0">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Board" Icon="DockBottom" Tag="board" />
+                <NavigationViewItem Content="Drucken" Icon="Print" Tag="print"  />
+            </NavigationView.MenuItems>
+            <NavigationView.PaneFooter>
+                <NavigationViewItem Content="Hilfe" Icon="Help" Tag="help" />
+            </NavigationView.PaneFooter>
+            
 
-        
+        </NavigationView>
+        -->
 
-        <Grid Grid.RowSpan="2" Height="54" VerticalAlignment="Top">
-            <Grid.Background>
-                <SolidColorBrush Color="{ThemeResource SystemAccentColorDark3}"/>
-            </Grid.Background>
-            <Grid.FocusVisualPrimaryBrush>
-                <SolidColorBrush Color="Black" Opacity="0.6"/>
-            </Grid.FocusVisualPrimaryBrush>
-            <Button Content="Neu" Margin="0,0,23,0" RenderTransformOrigin="0.99,0.473"
+        <uc:NavBar x:Name="navBar" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" />
+        <!--<uc:SettingsPage x:Name="settingsPage" Grid.Row="2" Grid.Column="2"  Visibility="Collapsed"/>-->
+
+
+        <Grid Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="0">
+            <Grid Height="54" VerticalAlignment="Top">
+                <Grid.Background>
+                    <SolidColorBrush Color="{ThemeResource SystemAccentColorDark3}"/>
+                </Grid.Background>
+                <Grid.FocusVisualPrimaryBrush>
+                    <SolidColorBrush Color="Black" Opacity="0.6"/>
+                </Grid.FocusVisualPrimaryBrush>
+                <Button Content="Neu" Margin="0,0,23,0" RenderTransformOrigin="0.99,0.473"
                     HorizontalAlignment="Right" Width="67" Click="Button_Click"/>
-            <AppBarToggleButton Icon="DisableUpdates" Label="Offline-Modus"
+                <AppBarToggleButton Icon="DisableUpdates" Label="Offline-Modus"
                                 Height="49" Width="98"
                                 x:Name="offlineModeToggleButton"
                                 Checked="offlineModeToggleButton_Checked" Margin="68,0,0,0"/>
-            <TextBox Margin="0,0,213,0" Text="Raumcode"
+                <TextBox Margin="0,0,213,0" Text="Raumcode"
                      TextWrapping="Wrap" VerticalAlignment="Center"
                      x:Name="roomCodeBox" TextAlignment="Center" TextChanged="roomCodeBox_TextChanged" HorizontalAlignment="Right" Width="86"/>
-            <Button Content="Beitreten" Margin="0,0,120,0" RenderTransformOrigin="0.483,0.508" IsEnabled="False"
+                <Button Content="Beitreten" Margin="0,0,120,0" RenderTransformOrigin="0.483,0.508" IsEnabled="False"
                     x:Name="connectButton" Click="connectButton_Click" HorizontalAlignment="Right" Width="76"/>
-            <Button Content="Exportieren" Margin="402,0,0,0" Click="CreateJSONExport"/>
-            <Button Content="Laden" Margin="513,0,0,0" Click="ImportPDF"/>
-            <TextBlock Margin="0,15,317,0" Text="A User joined your Board" TextWrapping="Wrap"
+                <Button Content="Exportieren" Margin="402,0,0,0" Click="CreateJSONExport"/>
+                <Button Content="Laden" Margin="513,0,0,0" Click="ImportPDF"/>
+                <TextBlock Margin="0,15,317,0" Text="A User joined your Board" TextWrapping="Wrap"
                        VerticalAlignment="Top" x:Name="userJoinedText" Visibility="Collapsed" HorizontalAlignment="Right" Width="155"/>
-            <AppBarToggleButton Icon="Accept" Label="Vollbild"
+                <AppBarToggleButton Icon="Accept" Label="Vollbild" IsChecked="true"
                                 Width="63"
                                 Click="Button_Click_1" x:Name="fullscreenIcon"/>
-            <Button Content="Drucken" Margin="594,0,0,0" Click="Printer_Click"/>
-            <AppBarToggleButton x:Name="togglePrintBackground" Icon="Print"
+                <Button Content="Drucken" Margin="594,0,0,0" Click="Printer_Click"/>
+                <AppBarToggleButton x:Name="togglePrintBackground" Icon="Print"
                                 Label="Druckvorschau" Margin="166,0,0,0"
                                 VerticalAlignment="Center" Width="91" IsChecked="True"
                                 Click="TogglePrintSiteBackgrounds"/>
-            <AppBarToggleButton x:Name="backgroundToggle" Icon="ViewAll" Label="Kästchen"
+                <AppBarToggleButton x:Name="backgroundToggle" Icon="ViewAll" Label="Kästchen"
                                 Margin="262,0,0,0" Click="ToggleBackgroundLines" VerticalAlignment="Center"/>
-            <Button Content="Öffnen" Margin="688,0,0,0" Click="LoadJSON"/>
-        </Grid>
-        <InkToolbar x:Name="inkToolbar"
+                <Button Content="Öffnen" Margin="688,0,0,0" Click="LoadJSON"/>
+
+            </Grid>
+            <InkToolbar x:Name="inkToolbar"
                     VerticalAlignment="Top"
-                    TargetInkCanvas="{x:Bind Path=inkCanvas}" Grid.Row="1" Margin="0,54,0,0" Height="44" >
-            <InkToolbar.Background>
-                <SolidColorBrush Color="{ThemeResource SystemAccentColorDark3}"/>
-            </InkToolbar.Background>
-            <InkToolbar.Foreground>
-                <AcrylicBrush TintOpacity="0.6" Opacity="0.6"/>
-            </InkToolbar.Foreground>
-        </InkToolbar>
+                    TargetInkCanvas="{x:Bind Path=inkCanvas}" Margin="0,54,0,0" Height="44" >
+                <InkToolbar.Background>
+                    <SolidColorBrush Color="{ThemeResource SystemAccentColorDark3}"/>
+                </InkToolbar.Background>
+                <InkToolbar.Foreground>
+                    <AcrylicBrush TintOpacity="0.6" Opacity="0.6"/>
+                </InkToolbar.Foreground>
+            </InkToolbar>
+        </Grid>
+        
+        
+
     </Grid>
 </Page>
