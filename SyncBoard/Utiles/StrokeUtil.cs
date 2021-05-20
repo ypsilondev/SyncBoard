@@ -1,14 +1,9 @@
 ﻿using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 using Windows.Foundation;
-using Windows.UI.Core;
 using Windows.UI.Input.Inking;
-using Windows.UI.Xaml.Controls;
 
 namespace SyncBoard.Utiles
 {

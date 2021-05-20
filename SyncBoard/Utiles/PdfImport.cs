@@ -6,7 +6,6 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
 using Windows.Data.Pdf;
 using Windows.Graphics.Imaging;
-using Windows.Security.Cryptography;
 using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.UI.Xaml.Controls;
@@ -19,9 +18,9 @@ namespace SyncBoard.Utiles
 
         private MainPage mainPage;
         private PdfDocument pdfDoc;
-        private Grid imports;
+        private Panel imports;
 
-        public PdfImport(PdfDocument pdfDoc, Grid imports, MainPage mainPage)
+        public PdfImport(PdfDocument pdfDoc, Panel imports, MainPage mainPage)
         {
             this.pdfDoc = pdfDoc;
             this.imports = imports;
@@ -75,8 +74,8 @@ namespace SyncBoard.Utiles
             }*/
             Viewbox site = CreateBackgroundImageViewbox(image, pageNr);
             this.imports.Children.Add(site);
-            
-            
+
+
         }
 
         public static async Task<string> SaveImageToFile(string fileName, WriteableBitmap workBmp)
@@ -98,7 +97,7 @@ namespace SyncBoard.Utiles
 
                 // var dl = await DownloadsFolder.CreateFileAsync(fileName, CreationCollisionOption.GenerateUniqueName);
                 StorageFolder folder = Windows.Storage.ApplicationData.Current.LocalFolder;
-                
+
                 System.Diagnostics.Debug.WriteLine(folder.Path);
                 var dl = await folder.CreateFileAsync(fileName, Windows.Storage.CreationCollisionOption.ReplaceExisting);
 
@@ -177,7 +176,7 @@ namespace SyncBoard.Utiles
                 await encoder.FlushAsync();
                 await imageWriteableStream.FlushAsync();
             }
-            
+
             return imageWriteableStream;
         }
     }

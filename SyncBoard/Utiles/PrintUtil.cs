@@ -1,13 +1,8 @@
 ﻿using Microsoft.Toolkit.Uwp.Helpers;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
-using Windows.Data.Pdf;
 using Windows.Graphics.Printing;
-using Windows.Storage.Streams;
 using Windows.UI.Input.Inking;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -53,7 +48,7 @@ namespace SyncBoard.Utiles
         }
 
 
-        public async static void PrintCanvas(InkCanvas inkCanvas, Grid imports, Canvas printCanvas)
+        public async static void PrintCanvas(InkCanvas inkCanvas, Panel imports, Canvas printCanvas)
         {
             var _printHelper = new PrintHelper(printCanvas);
             // Canvas PrintCanvas = new Canvas();
@@ -119,26 +114,26 @@ namespace SyncBoard.Utiles
             // Open print-GUI
             try
             {
-                
+
                 var printHelperOptions = new PrintHelperOptions();
                 printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Orientation);
                 printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.CustomPageRanges);
                 printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Duplex);
-                
+
                 //PrintTaskOptions options = new PrintTaskOptions();
                 //options.MediaSize = PrintMediaSize.IsoA4;
                 //printHelperOptions.AddDisplayOption();
 
                 printHelperOptions.Orientation = PrintOrientation.Portrait;
                 printHelperOptions.PrintQuality = PrintQuality.High;
-                
-                
+
+
 
                 // var _printHelper = new PrintHelper(PrintCanvas);
                 _printHelper.OnPrintSucceeded += PrintSucceded;
                 _printHelper.OnPrintFailed += PrintFailed;
 
-                
+
                 await _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, false);
             }
             catch (Exception ignored)

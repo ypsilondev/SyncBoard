@@ -9,6 +9,33 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
+
+    <Page.Resources>
+        <!-- Add the custom CalligraphicPen to the page resources. -->
+        <local:CalligraphicPen x:Key="CalligraphicPen" />
+        <!-- Specify the colors for the palette of the custom pen. -->
+        <BrushCollection x:Key="KitPenPalette">
+            <SolidColorBrush Color="Black" />
+            
+            <!-- KIT-Colors -->
+            <SolidColorBrush Color="#FF2EA38A" />
+            <SolidColorBrush Color="#4664aa" />
+            <SolidColorBrush Color="#23a1e0" />
+            <SolidColorBrush Color="#8cb63c" />
+            <SolidColorBrush Color="#df9b1b" />
+            <SolidColorBrush Color="#a7822e" />
+            <SolidColorBrush Color="#a22223" />
+            <SolidColorBrush Color="#a3107c" />
+            
+            <!-- Other colors -->
+            <SolidColorBrush Color="Blue" />
+            <SolidColorBrush Color="Red" />
+            <SolidColorBrush Color="Green" />
+        </BrushCollection>
+    </Page.Resources>
+
+
+
     <Grid Background="#FF2F333C">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -19,6 +46,13 @@
             <ColumnDefinition Width="50"></ColumnDefinition>
             <ColumnDefinition Width="*"></ColumnDefinition>
         </Grid.ColumnDefinitions>
+<Button Content="Click me">
+  <Button.Flyout>
+     <Flyout>
+        <TextBlock Text="This is a flyout!"/>
+     </Flyout>
+  </Button.Flyout>
+</Button>
 
         <Grid x:Name="contentContainer" Grid.Row="2" Grid.Column="2">
             <ScrollViewer x:Name="scrollViewer" ZoomMode="Enabled" MinZoomFactor="1"
@@ -28,7 +62,7 @@
                 <Grid x:Name="outputGrid"
                   Height="892"
                   Width="1500">
-                    <Canvas x:Name="PrintCanvas" Opacity="0"/>
+                    <Canvas x:Name="PrintCanvas" Visibility="Collapsed"/>
                     <Grid x:Name="background" Visibility="Collapsed"></Grid>
                     <Grid x:Name="printBackgrounds"></Grid>
                     <Grid x:Name="imports" VerticalAlignment="Top" HorizontalAlignment="Left"></Grid>
@@ -109,21 +143,67 @@
                 <AppBarToggleButton x:Name="backgroundToggle" Icon="ViewAll" Label="Kästchen"
                                 Margin="262,0,0,0" Click="ToggleBackgroundLines" VerticalAlignment="Center"/>
                 <Button Content="Öffnen" Margin="688,0,0,0" Click="LoadJSON"/>
+                <Button Content="Datei" Margin="800 0 0 0">
+                    <Button.Flyout>
+                        <Flyout>
+                            <StackPanel Spacing="5">
+                                <Button Content="Board laden" Width="150" Click="LoadJSON"></Button>
+                                <Button Content="Board speichern" Width="150" Click="CreateJSONExport"></Button>
+                                <Button Content="PDF importieren" Width="150" Click="ImportPDF"></Button>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <Button Content="Ansicht" Margin="900 0 0 0">
+                    <Button.Flyout>
+                        <Flyout>
+                            <StackPanel Spacing="5">
+                                <Button Content="Kästchen anzeigen" Width="150" Click="ToggleBackgroundLines"></Button>
+                                <Button Content="Seitengröße anzeigen" Width="150" Click="TogglePrintSiteBackgrounds"></Button>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+
 
             </Grid>
             <InkToolbar x:Name="inkToolbar"
                     VerticalAlignment="Top"
-                    TargetInkCanvas="{x:Bind Path=inkCanvas}" Margin="0,54,0,0" Height="44" >
+                    TargetInkCanvas="{x:Bind Path=inkCanvas}" Margin="0,54,0,0" Height="44" InitialControls="All">
+                
                 <InkToolbar.Background>
                     <SolidColorBrush Color="{ThemeResource SystemAccentColorDark3}"/>
                 </InkToolbar.Background>
                 <InkToolbar.Foreground>
                     <AcrylicBrush TintOpacity="0.6" Opacity="0.6"/>
                 </InkToolbar.Foreground>
+                <InkToolbarCustomPenButton
+                    CustomPen="{StaticResource CalligraphicPen}"
+                    Palette="{StaticResource KitPenPalette}"
+                    MinStrokeWidth="1" MaxStrokeWidth="15" SelectedStrokeWidth="2"
+                    SelectedBrushIndex ="1"
+                    x:Name="customPen1">
+                    <!--<SymbolIcon Symbol="Edit" />-->
+                    <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE76D;" />
+                    <InkToolbarCustomPenButton.ConfigurationContent>
+                        <InkToolbarPenConfigurationControl />
+                    </InkToolbarCustomPenButton.ConfigurationContent>
+                </InkToolbarCustomPenButton>
+                <InkToolbarCustomPenButton
+                    CustomPen="{StaticResource CalligraphicPen}"
+                    Palette="{StaticResource KitPenPalette}"
+                    MinStrokeWidth="1" MaxStrokeWidth="15" SelectedStrokeWidth="2"
+                    SelectedBrushIndex ="1">
+                    <SymbolIcon Symbol="Edit" />
+                    <InkToolbarCustomPenButton.ConfigurationContent>
+                        <InkToolbarPenConfigurationControl />
+                    </InkToolbarCustomPenButton.ConfigurationContent>
+                </InkToolbarCustomPenButton>
             </InkToolbar>
         </Grid>
-        
-        
+        <HyperlinkButton Content="HyperlinkButton" Grid.Column="1" Margin="149,-91,0,0" VerticalAlignment="Top"/>
+
+
 
     </Grid>
 </Page>

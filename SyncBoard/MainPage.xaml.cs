@@ -24,6 +24,8 @@ namespace SyncBoard
 {
     public sealed partial class MainPage : Page
     {
+        Symbol CalligraphicPenIcon = (Symbol)0xEDFB;
+
         private static int EXPAND_MARGIN = 600;
 
 
@@ -47,6 +49,7 @@ namespace SyncBoard
 
         public uint rectangleCounter = 0, pdfSiteCounter = 0;
         internal static MainPage Instance;
+
 
         public MainPage()
         {
@@ -75,7 +78,7 @@ namespace SyncBoard
             inkCanvas.InkPresenter.StrokesErased += InkPresenter_StrokesErased;
             inkCanvas.InkPresenter.StrokesCollected += InkPresenter_Drawed;
 
-
+            
 
             // Init background:
             InitializePrintSiteBackground();
@@ -84,7 +87,24 @@ namespace SyncBoard
             // Network and sync:
             InitSocket();
 
+            inkToolbar.InkDrawingAttributesChanged += Test;
+
             
+        }
+
+        private void Test(InkToolbar toolbar, object test)
+        {
+            System.Diagnostics.Debug.WriteLine("TEST");
+            if (toolbar.ActiveTool is InkToolbarCustomPenButton)
+            {
+                ((InkToolbarCustomPenButton)toolbar.ActiveTool).Foreground = new SolidColorBrush(toolbar.InkDrawingAttributes.Color);
+            }
+            else if (toolbar.ActiveTool is InkToolbarPenButton)
+            {
+                ((InkToolbarPenButton)toolbar.ActiveTool).Foreground = new SolidColorBrush(toolbar.InkDrawingAttributes.Color);
+            }
+            
+            System.Diagnostics.Debug.WriteLine(test);
         }
 
         private void InkPresenter_StrokesErased(InkPresenter sender, InkStrokesErasedEventArgs args)
@@ -532,9 +552,9 @@ namespace SyncBoard
             fullscreenIcon.IsChecked = ApplicationView.GetForCurrentView().IsFullScreenMode;
         }
 
-        
 
-        
+
+
 
         // Print PDF
         public async void Printer_Click(object sender, RoutedEventArgs e)
@@ -704,6 +724,7 @@ namespace SyncBoard
             // Show the file picker.
             Windows.Storage.StorageFile f = await openPicker.PickSingleFileAsync();
             String text = await Windows.Storage.FileIO.ReadTextAsync(f);
+
 
             JArray board = JArray.Parse(text);
             ClearRoom();

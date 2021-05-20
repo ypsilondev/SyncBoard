@@ -1,17 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
+﻿using System.Linq;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Controls.Primitives;
-using Windows.UI.Xaml.Data;
-using Windows.UI.Xaml.Input;
-using Windows.UI.Xaml.Media;
-using Windows.UI.Xaml.Navigation;
 
 // Die Elementvorlage "Benutzersteuerelement" wird unter https://go.microsoft.com/fwlink/?LinkId=234236 dokumentiert.
 
@@ -24,7 +13,7 @@ namespace SyncBoard.UserControls
             this.InitializeComponent();
             navBar.ItemInvoked += NavView_ItemInvoked;
             // navBar.Opacity = 0;
-            
+
         }
 
         public void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
