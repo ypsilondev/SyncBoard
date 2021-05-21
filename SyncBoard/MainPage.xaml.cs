@@ -578,7 +578,7 @@ namespace SyncBoard
             rectangle.Height = PRINT_RECTANGLE_HEIGHT;
             rectangle.Margin = new Thickness(0, PRINT_RECTANGLE_HEIGHT * rectangleCounter, 0, 0);
             rectangle.Fill = new SolidColorBrush(Color.FromArgb(5, 255, 255, 255));
-            rectangle.Stroke = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
+            // rectangle.Stroke = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
             rectangle.VerticalAlignment = VerticalAlignment.Top;
             rectangle.HorizontalAlignment = HorizontalAlignment.Left;
 
@@ -616,30 +616,68 @@ namespace SyncBoard
             }
             for (int i = start; i <= inkCanvas.Height; i += SettingsPage.BACKGROUND_DENSITY_DELTA)
             {
-                Line line = new Line();
-                line.X1 = 0;
-                line.X2 = Window.Current.Bounds.Width;
-                line.Y1 = i;
-                line.Y2 = i;
+                /*Rectangle line = new Rectangle();
+                line.Width = Window.Current.Bounds.Width;
+                //line.X1 = 0;
+                //line.X2 = Window.Current.Bounds.Width;
+                //line.Y1 = i;
+                //line.Y2 = i;
 
-                line.Stroke = new SolidColorBrush(Color.FromArgb(50, 21, 21, 21));
-                line.StrokeThickness = 1.0;
-                background.Children.Add(line);
+                line.Height = 1;
+                line.Translation = new System.Numerics.Vector3(0, i, 0);
+
+                line.Fill = new SolidColorBrush(Color.FromArgb(90, 21, 21, 21));*/
+
+                // line.Stroke = new SolidColorBrush(Color.FromArgb(50, 21, 21, 21));
+                // line.StrokeThickness = 1.0;
+                // line.Width = 2.0;
+                background.Children.Add(this.createLine(0, (int)Window.Current.Bounds.Width, i, i, true));
             }
 
             // Vertical lines
             for (int i = 0; i <= Window.Current.Bounds.Width; i += SettingsPage.BACKGROUND_DENSITY_DELTA)
             {
-                Line line = new Line();
+                /*Line line = new Line();
                 line.X1 = i;
                 line.X2 = i;
                 line.Y1 = start;
                 line.Y2 = inkCanvas.Height;
+                //line.Height = inkCanvas.Height;
+                //line.Width = 4;
+                line.Margin = new Thickness(i, start, 0, 0);
 
                 line.Stroke = new SolidColorBrush(Color.FromArgb(50, 21, 21, 21));
                 line.StrokeThickness = 1.0;
-                background.Children.Add(line);
+                background.Children.Add(line);*/
+                background.Children.Add(this.createLine(i, i, start, (int)inkCanvas.ActualHeight, false));
             }
+        }
+
+        private Rectangle createLine(int X1, int X2, int Y1, int Y2, bool horizontal)
+        {
+            int w = 1;
+            Rectangle line = new Rectangle();
+
+            if(horizontal)
+            {
+                line.Width = X2 - X1;
+                line.Height = w;
+            } else
+            {
+                line.Width = w;
+                //line.Height = Y2 - Y1;
+                line.Height = Y2;
+            }
+
+            System.Diagnostics.Debug.WriteLine(Y1);
+            
+            line.Translation = new System.Numerics.Vector3(X1, Y1, 0);
+
+            line.VerticalAlignment = VerticalAlignment.Top;
+            line.HorizontalAlignment = HorizontalAlignment.Left;
+
+            line.Fill = new SolidColorBrush(Color.FromArgb(90, 21, 21, 21));
+            return line;
         }
 
         private void ToggleBackgroundLines(object sender, RoutedEventArgs e)

@@ -63,8 +63,20 @@
                   Height="892"
                   Width="1500">
                     <Canvas x:Name="PrintCanvas" Visibility="Collapsed"/>
-                    <Grid x:Name="background" Visibility="Collapsed"></Grid>
+                    
                     <Grid x:Name="printBackgrounds"></Grid>
+
+                    <Grid x:Name="background" Visibility="Collapsed" Grid.Row="0" Grid.Column="0" Margin="0" >
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"  />
+                        </Grid.RowDefinitions>
+                        <Grid.Children>
+                            <!--<Rectangle Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="500" Height="200" Fill="Red" Margin="0 0 0 0"></Rectangle>-->
+                        </Grid.Children>
+                    </Grid>
                     <Grid x:Name="imports" VerticalAlignment="Top" HorizontalAlignment="Left"></Grid>
                     <InkCanvas x:Name="inkCanvas"
                    Height="1218"
