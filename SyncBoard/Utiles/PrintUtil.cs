@@ -50,7 +50,7 @@ namespace SyncBoard.Utiles
 
         public async static void PrintCanvas(InkCanvas inkCanvas, Panel imports, Canvas printCanvas)
         {
-            var _printHelper = new PrintHelper(printCanvas);
+            //var _printHelper = new PrintHelper(printCanvas);
             // Canvas PrintCanvas = new Canvas();
 
             // Calculate amount of required pages
@@ -105,8 +105,8 @@ namespace SyncBoard.Utiles
             {
                 if (pagePanels[i].Children.Count > 0 || pageCount <= 1)
                 {
-                    // PrintCanvas.Children.Add(pagePanels[i]);
-                    _printHelper.AddFrameworkElementToPrint(pagePanels[i]);
+                     printCanvas.Children.Add(pagePanels[i]);
+                    //_printHelper.AddFrameworkElementToPrint(pagePanels[i]);
                 }
             }
             pagePanels = null; // Remove reference for performance reasons.
@@ -114,6 +114,8 @@ namespace SyncBoard.Utiles
             // Open print-GUI
             try
             {
+
+                var _printHelper = new PrintHelper(printCanvas);
 
                 var printHelperOptions = new PrintHelperOptions();
                 printHelperOptions.AddDisplayOption(StandardPrintTaskOptions.Orientation);
@@ -133,8 +135,8 @@ namespace SyncBoard.Utiles
                 _printHelper.OnPrintSucceeded += PrintSucceded;
                 _printHelper.OnPrintFailed += PrintFailed;
 
-
-                await _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, false);
+                // await _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, false);
+                await _printHelper.ShowPrintUIAsync("SyncBoard Print", printHelperOptions, true);
             }
             catch (Exception ignored)
             {

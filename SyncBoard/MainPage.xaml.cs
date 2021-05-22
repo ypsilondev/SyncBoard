@@ -580,7 +580,6 @@ namespace SyncBoard
             rectangle.Fill = new SolidColorBrush(Color.FromArgb(5, 255, 255, 255));
 
             // rectangle.Stroke = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
-            rectangle.Stroke = new SolidColorBrush(Colors.Red);
             // rectangle.StrokeThickness = 2;
 
             rectangle.VerticalAlignment = VerticalAlignment.Top;
@@ -591,6 +590,39 @@ namespace SyncBoard
             r.Width = PRINT_RECTANGLE_WIDTH;
             r.Fill = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
             r.Translation = new System.Numerics.Vector3(0, PRINT_RECTANGLE_HEIGHT * rectangleCounter, 0);
+
+            r.VerticalAlignment = VerticalAlignment.Top;
+            r.HorizontalAlignment = HorizontalAlignment.Left;
+
+            printBackgrounds.Children.Add(r);
+
+            r = new Rectangle();
+            r.Height = 2;
+            r.Width = PRINT_RECTANGLE_WIDTH;
+            r.Fill = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
+            r.Translation = new System.Numerics.Vector3(0, PRINT_RECTANGLE_HEIGHT * (rectangleCounter-1), 0);
+
+            r.VerticalAlignment = VerticalAlignment.Top;
+            r.HorizontalAlignment = HorizontalAlignment.Left;
+
+            printBackgrounds.Children.Add(r);
+
+            r = new Rectangle();
+            r.Width = 2;
+            r.Height = PRINT_RECTANGLE_HEIGHT;
+            r.Fill = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
+            r.Translation = new System.Numerics.Vector3(0, PRINT_RECTANGLE_HEIGHT * (rectangleCounter - 1), 0);
+
+            r.VerticalAlignment = VerticalAlignment.Top;
+            r.HorizontalAlignment = HorizontalAlignment.Left;
+
+            printBackgrounds.Children.Add(r);
+
+            r = new Rectangle();
+            r.Width = 2;
+            r.Height = PRINT_RECTANGLE_HEIGHT;
+            r.Fill = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
+            r.Translation = new System.Numerics.Vector3(PRINT_RECTANGLE_WIDTH, PRINT_RECTANGLE_HEIGHT * (rectangleCounter - 1), 0);
 
             r.VerticalAlignment = VerticalAlignment.Top;
             r.HorizontalAlignment = HorizontalAlignment.Left;
