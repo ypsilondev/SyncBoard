@@ -578,9 +578,24 @@ namespace SyncBoard
             rectangle.Height = PRINT_RECTANGLE_HEIGHT;
             rectangle.Margin = new Thickness(0, PRINT_RECTANGLE_HEIGHT * rectangleCounter, 0, 0);
             rectangle.Fill = new SolidColorBrush(Color.FromArgb(5, 255, 255, 255));
+
             // rectangle.Stroke = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
+            rectangle.Stroke = new SolidColorBrush(Colors.Red);
+            // rectangle.StrokeThickness = 2;
+
             rectangle.VerticalAlignment = VerticalAlignment.Top;
             rectangle.HorizontalAlignment = HorizontalAlignment.Left;
+
+            Rectangle r = new Rectangle();
+            r.Height = 2;
+            r.Width = PRINT_RECTANGLE_WIDTH;
+            r.Fill = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
+            r.Translation = new System.Numerics.Vector3(0, PRINT_RECTANGLE_HEIGHT * rectangleCounter, 0);
+
+            r.VerticalAlignment = VerticalAlignment.Top;
+            r.HorizontalAlignment = HorizontalAlignment.Left;
+
+            printBackgrounds.Children.Add(r);
 
             printBackgrounds.Children.Add(rectangle);
             rectangleCounter++;
@@ -608,7 +623,10 @@ namespace SyncBoard
         public void CreateBackground(Boolean inital)
         {
             // Horizontal lines
-            int start = (int)Math.Max(inkCanvas.Height - BORDER_EXPANSION, 0);
+
+            int drawnLines = (int)Math.Max(inkCanvas.Height - BORDER_EXPANSION, 0) / SettingsPage.BACKGROUND_DENSITY_DELTA;
+
+            int start = (drawnLines + 1) * SettingsPage.BACKGROUND_DENSITY_DELTA;
             if (inkCanvas.Height - BORDER_EXPANSION < BORDER_EXPANSION || inital)
             {
                 start = 0;
@@ -670,7 +688,8 @@ namespace SyncBoard
             }
 
             System.Diagnostics.Debug.WriteLine(Y1);
-            
+
+            line.Margin = new Thickness(0);
             line.Translation = new System.Numerics.Vector3(X1, Y1, 0);
 
             line.VerticalAlignment = VerticalAlignment.Top;

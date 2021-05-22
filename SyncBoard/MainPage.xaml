@@ -61,26 +61,21 @@
                       Width="1500" Height="897" VerticalAlignment="Top" HorizontalAlignment="Left">
                 <Grid x:Name="outputGrid"
                   Height="892"
-                  Width="1500">
-                    <Canvas x:Name="PrintCanvas" Visibility="Collapsed"/>
+                  Width="1500" Margin="0">
+                    <!--<Canvas x:Name="PrintCanvas" Visibility="Collapsed"/>-->
+                    <Canvas x:Name="PrintCanvas" Opacity="0"/>
                     
-                    <Grid x:Name="printBackgrounds"></Grid>
+                    <Grid x:Name="printBackgrounds" Margin="0" VerticalAlignment="Top" HorizontalAlignment="Left"></Grid>
 
                     <Grid x:Name="background" Visibility="Collapsed" Grid.Row="0" Grid.Column="0" Margin="0" >
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"  />
-                        </Grid.RowDefinitions>
-                        <Grid.Children>
+<!--                        <Grid.Children> -->
                             <!--<Rectangle Grid.Row="0" Grid.Column="0" VerticalAlignment="Top" HorizontalAlignment="Left" Width="500" Height="200" Fill="Red" Margin="0 0 0 0"></Rectangle>-->
-                        </Grid.Children>
+                        <!--</Grid.Children>-->
                     </Grid>
-                    <Grid x:Name="imports" VerticalAlignment="Top" HorizontalAlignment="Left"></Grid>
+                    <Grid x:Name="imports" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0"></Grid>
                     <InkCanvas x:Name="inkCanvas"
                    Height="1218"
-                   Width="1843" VerticalAlignment="Top" HorizontalAlignment="Left"/>
+                   Width="1843" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="0 0 0 0" Grid.Row="0" Grid.Column="0"/>
                 </Grid>
             </ScrollViewer>
             
