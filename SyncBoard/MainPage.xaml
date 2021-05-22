@@ -46,13 +46,6 @@
             <ColumnDefinition Width="50"></ColumnDefinition>
             <ColumnDefinition Width="*"></ColumnDefinition>
         </Grid.ColumnDefinitions>
-<Button Content="Click me">
-  <Button.Flyout>
-     <Flyout>
-        <TextBlock Text="This is a flyout!"/>
-     </Flyout>
-  </Button.Flyout>
-</Button>
 
         <Grid x:Name="contentContainer" Grid.Row="2" Grid.Column="2">
             <ScrollViewer x:Name="scrollViewer" ZoomMode="Enabled" MinZoomFactor="1"
@@ -177,7 +170,7 @@
             <InkToolbar x:Name="inkToolbar"
                     VerticalAlignment="Top"
                     TargetInkCanvas="{x:Bind Path=inkCanvas}" Margin="0,54,0,0" Height="44" InitialControls="All">
-                
+
                 <InkToolbar.Background>
                     <SolidColorBrush Color="{ThemeResource SystemAccentColorDark3}"/>
                 </InkToolbar.Background>
@@ -208,9 +201,5 @@
                 </InkToolbarCustomPenButton>
             </InkToolbar>
         </Grid>
-        <HyperlinkButton Content="HyperlinkButton" Grid.Column="1" Margin="149,-91,0,0" VerticalAlignment="Top"/>
-
-
-
     </Grid>
 </Page>

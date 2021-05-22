@@ -684,22 +684,25 @@ namespace SyncBoard
                 background.Children.Add(this.createLine(0, (int)Window.Current.Bounds.Width, i, i, true));
             }
 
-            // Vertical lines
-            for (int i = 0; i <= Window.Current.Bounds.Width; i += SettingsPage.BACKGROUND_DENSITY_DELTA)
+            if (SettingsPage.BACKGROUND_STYLE.Equals(BackgroundStyle.BOXES))
             {
-                /*Line line = new Line();
-                line.X1 = i;
-                line.X2 = i;
-                line.Y1 = start;
-                line.Y2 = inkCanvas.Height;
-                //line.Height = inkCanvas.Height;
-                //line.Width = 4;
-                line.Margin = new Thickness(i, start, 0, 0);
+                // Vertical lines
+                for (int i = 0; i <= Window.Current.Bounds.Width; i += SettingsPage.BACKGROUND_DENSITY_DELTA)
+                {
+                    /*Line line = new Line();
+                    line.X1 = i;
+                    line.X2 = i;
+                    line.Y1 = start;
+                    line.Y2 = inkCanvas.Height;
+                    //line.Height = inkCanvas.Height;
+                    //line.Width = 4;
+                    line.Margin = new Thickness(i, start, 0, 0);
 
-                line.Stroke = new SolidColorBrush(Color.FromArgb(50, 21, 21, 21));
-                line.StrokeThickness = 1.0;
-                background.Children.Add(line);*/
-                background.Children.Add(this.createLine(i, i, start, (int)inkCanvas.ActualHeight, false));
+                    line.Stroke = new SolidColorBrush(Color.FromArgb(50, 21, 21, 21));
+                    line.StrokeThickness = 1.0;
+                    background.Children.Add(line);*/
+                    background.Children.Add(this.createLine(i, i, start, (int)inkCanvas.ActualHeight, false));
+                }
             }
         }
 

@@ -16,7 +16,7 @@
                 <TextBlock Text="Einstellungen" TextWrapping="Wrap" FontSize="24" FontWeight="Bold"/>
                 
                 <TextBox HorizontalAlignment="Left" Width="235" Text="yjulian.xyz" TextWrapping="Wrap" VerticalAlignment="Center">
-                    <TextBox.Header>Server</TextBox.Header>
+                    <TextBox.Header>Server [Not implemented yet.]</TextBox.Header>
                     <TextBox.Margin>0 0 0 10</TextBox.Margin>
                 </TextBox>
 
@@ -25,10 +25,27 @@
                     <Slider.Margin>0 0 0 10</Slider.Margin>
                 </Slider>
 
+                
                 <Slider x:Name="backgroundDenisitySelector" HorizontalAlignment="Left" VerticalAlignment="Center" IsDirectionReversed="True" Value="20" Minimum="10" Maximum="60" StepFrequency="10">
                     <Slider.Header>Kästchen-Abstand</Slider.Header>
                     <Slider.Margin>0 0 0 10</Slider.Margin>
                 </Slider>
+
+
+                <TextBlock Text="Background style" />
+                <StackPanel Orientation="Horizontal" Padding="0">
+                    <RadioButton Checked="BackgroundStyleChanged">
+                        <RadioButton.Content>Karriert</RadioButton.Content>
+                        <RadioButton.Tag>backgroundBoxes</RadioButton.Tag>
+                        <RadioButton.IsChecked>true</RadioButton.IsChecked>
+                    </RadioButton>
+                    <RadioButton Checked="BackgroundStyleChanged">
+                        <RadioButton.Content>Liniert</RadioButton.Content>
+                        <RadioButton.Tag>backgroundLines</RadioButton.Tag>
+                        <RadioButton.IsChecked>false</RadioButton.IsChecked>
+                    </RadioButton>
+                </StackPanel>
+
 
             </ListView>
         </StackPanel>
