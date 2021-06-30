@@ -12,8 +12,21 @@ namespace SyncBoard.UserControls
         {
             this.InitializeComponent();
             navBar.ItemInvoked += NavView_ItemInvoked;
+            navBar.Loaded += OnNavBarLoaded;
+            this.CloseNavBar();
             // navBar.Opacity = 0;
 
+        }
+
+        private void OnNavBarLoaded(object sender, RoutedEventArgs e)
+        {
+            this.CloseNavBar();
+        }
+
+        public void CloseNavBar()
+        {
+            navBar.IsPaneOpen = false;
+            navBar.UpdateLayout();
         }
 
         public void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)

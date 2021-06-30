@@ -9,7 +9,7 @@
     >
 
     <!--<Grid Background="AliceBlue">-->
-        <NavigationView x:Name="navBar" PaneTitle="Syncboard" IsBackButtonVisible="Collapsed">
+        <NavigationView x:Name="navBar" PaneTitle="Syncboard" IsBackButtonVisible="Collapsed" IsPaneOpen="False">
             <NavigationView.MenuItems>
             <NavigationViewItem Content="Vollbild" Icon="FullScreen" Tag="fullscreen" />
             <NavigationViewItem Content="Board" Icon="DockBottom" Tag="board" />

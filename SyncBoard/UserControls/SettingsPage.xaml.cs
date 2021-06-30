@@ -19,8 +19,21 @@ namespace SyncBoard.UserControls
         {
             this.InitializeComponent();
 
+            // this.serverSelector.TextChanged += ServerChanged;
+
             this.pdfQualitySelector.ValueChanged += PdfQualityChanged;
             this.backgroundDenisitySelector.ValueChanged += BackgroundDensityChanged;
+        }
+
+        private void ConfirmServerChange(object sender, RoutedEventArgs e)
+        {
+            string server = serverSelector.Text.ToString().ToLower();
+            System.Diagnostics.Debug.WriteLine("Switched to host: " + server);
+            Network.SetServer(server);
+            if (MainPage.Instance != null)
+            {
+                MainPage.Instance.InitSocket();
+            }
         }
 
         private void PdfQualityChanged(object sender, RangeBaseValueChangedEventArgs args)

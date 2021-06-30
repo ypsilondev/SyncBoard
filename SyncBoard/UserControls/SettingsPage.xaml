@@ -14,11 +14,16 @@
         <StackPanel Margin="15 25 15 25">
             <ListView>
                 <TextBlock Text="Einstellungen" TextWrapping="Wrap" FontSize="24" FontWeight="Bold"/>
+
+                <StackPanel Orientation="Vertical" Padding="0">
+                    <TextBox HorizontalAlignment="Left" Width="235" Text="yjulian.xyz" x:Name="serverSelector" TextWrapping="Wrap" VerticalAlignment="Center">
+                        <TextBox.Header>Server [Not yet implemented. At least not perfectly...]</TextBox.Header>
+                        <TextBox.Margin>0 0 0 10</TextBox.Margin>
+                    </TextBox>
+                    <Button x:Name="serverSelectConfirm" Content="Setzen" Click="ConfirmServerChange" Width="235" />
+                </StackPanel>
                 
-                <TextBox HorizontalAlignment="Left" Width="235" Text="yjulian.xyz" TextWrapping="Wrap" VerticalAlignment="Center">
-                    <TextBox.Header>Server [Not implemented yet.]</TextBox.Header>
-                    <TextBox.Margin>0 0 0 10</TextBox.Margin>
-                </TextBox>
+                
 
                 <Slider x:Name="pdfQualitySelector" HorizontalAlignment="Left" VerticalAlignment="Center"  Minimum="1" Maximum="4">
                     <Slider.Header>PDF-Import Qualität</Slider.Header>
@@ -45,7 +50,6 @@
                         <RadioButton.IsChecked>false</RadioButton.IsChecked>
                     </RadioButton>
                 </StackPanel>
-
 
             </ListView>
         </StackPanel>

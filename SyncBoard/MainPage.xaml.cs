@@ -122,8 +122,16 @@ namespace SyncBoard
             DrawStrokesFromList(args.Strokes.ToList());
         }
 
-        private async void InitSocket()
+        public async void InitSocket()
         {
+            if(socket != null && socket.Connected)
+            {
+                await socket.DisconnectAsync();
+                socket = null;
+            }
+
+            System.Diagnostics.Debug.WriteLine(Network.URL);
+
             socket = new SocketIO(Network.URL, new SocketIOOptions
             {
                 EIO = 4,
@@ -175,14 +183,18 @@ namespace SyncBoard
                     JObject stroke = (JObject)strokePointArray;
                     InkStroke c = StrokeUtil.ParseFromJSON(stroke);
 
-                    syncedStrokes.Add(Guid.Parse(stroke.Value<String>("guid")), c);
-                    reverseStrokes.Add(c, Guid.Parse(stroke.Value<String>("guid")));
+                    if (!syncedStrokes.ContainsKey(Guid.Parse(stroke.Value<String>("guid"))))
+                    {
+                        syncedStrokes.Add(Guid.Parse(stroke.Value<String>("guid")), c);
+                        reverseStrokes.Add(c, Guid.Parse(stroke.Value<String>("guid")));
 
-                    _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
+                        _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
                         RunAsync(CoreDispatcherPriority.Low, () =>
                         {
                             inkCanvas.InkPresenter.StrokeContainer.AddStroke(c);
                         });
+                    }
+                                        
                 }
 
                 // TODO FIXME: this is the code for the new protocol-version of syncboard
@@ -234,6 +246,15 @@ namespace SyncBoard
                                 userJoinedText.Visibility = Visibility.Visible;
                             });
 
+                        // Send all the strokes. Everybody. Sends. All. Strokes! (Why? Bc I dont want to mess with the stupid backend... :c)
+                        List<InkStroke> strokes = new List<InkStroke>();
+                        foreach (KeyValuePair<Guid, InkStroke> val in syncedStrokes)
+                        {
+                            strokes.Add(val.Value);
+                        }
+
+                        SyncData(strokes, "sync");
+
                         Thread.Sleep(2000);
 
                         _ = Windows.ApplicationModel.Core.CoreApplication.MainView.Dispatcher.
@@ -241,6 +262,8 @@ namespace SyncBoard
                             {
                                 userJoinedText.Visibility = Visibility.Collapsed;
                             });
+
+                        
                     }
                     else if (dataJson.Value<String>("action") == "sendBoard")
                     {
@@ -350,7 +373,7 @@ namespace SyncBoard
             outputGrid.Width += x;
             inkCanvas.Width += x;
 
-            while (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
+            while (inkCanvas.Height >= (rectangleCounter+1) * PRINT_RECTANGLE_HEIGHT)
             {
                 CreateNewPrintSiteBackground();
             }
@@ -368,7 +391,7 @@ namespace SyncBoard
 
             if (inkCanvas.Height >= rectangleCounter * PRINT_RECTANGLE_HEIGHT)
             {
-                for (int i = 0; i <= ((inkCanvas.Height - rectangleCounter * PRINT_RECTANGLE_HEIGHT) / BORDER_EXPANSION) + 1; i++)
+                for (int i = 0; i <= ((inkCanvas.Height - rectangleCounter * PRINT_RECTANGLE_HEIGHT) / BORDER_EXPANSION); i++)
                 {
                     CreateNewPrintSiteBackground();
                 }
@@ -565,7 +588,7 @@ namespace SyncBoard
         // Background rectangles to indicate where the print area is
         private void InitializePrintSiteBackground()
         {
-            for (int i = 0; i < AMOUNT_INITIAL_RECTANGLES; i++)
+            for (int i = 0; i < AMOUNT_INITIAL_RECTANGLES - 1; i++)
             {
                 CreateNewPrintSiteBackground();
             }
@@ -576,7 +599,7 @@ namespace SyncBoard
             Rectangle rectangle = new Rectangle();
             rectangle.Width = PRINT_RECTANGLE_WIDTH;
             rectangle.Height = PRINT_RECTANGLE_HEIGHT;
-            rectangle.Margin = new Thickness(0, PRINT_RECTANGLE_HEIGHT * rectangleCounter, 0, 0);
+            rectangle.Margin = new Thickness(0, PRINT_RECTANGLE_HEIGHT * (rectangleCounter), 0, 0);
             rectangle.Fill = new SolidColorBrush(Color.FromArgb(5, 255, 255, 255));
 
             // rectangle.Stroke = new SolidColorBrush(Color.FromArgb(255, 81, 81, 81));
@@ -584,6 +607,8 @@ namespace SyncBoard
 
             rectangle.VerticalAlignment = VerticalAlignment.Top;
             rectangle.HorizontalAlignment = HorizontalAlignment.Left;
+
+            rectangleCounter++;
 
             Rectangle r = new Rectangle();
             r.Height = 2;
@@ -630,7 +655,7 @@ namespace SyncBoard
             printBackgrounds.Children.Add(r);
 
             printBackgrounds.Children.Add(rectangle);
-            rectangleCounter++;
+            // rectangleCounter++;
         }
 
         private void TogglePrintSiteBackgrounds(object sender, RoutedEventArgs e)
@@ -722,7 +747,6 @@ namespace SyncBoard
                 line.Height = Y2;
             }
 
-            System.Diagnostics.Debug.WriteLine(Y1);
 
             line.Margin = new Thickness(0);
             line.Translation = new System.Numerics.Vector3(X1, Y1, 0);
